@@ -6,7 +6,7 @@ This document is conservative by design. A component is not marked ready merely 
 
 ## Gate 0 — Repository hygiene and deterministic formatting
 
-Status: **Implemented; final full-tree Prettier pass must run on a machine with installed npm dependencies**
+Status: **Verified on the developer workstation**
 
 Implemented:
 
@@ -23,11 +23,12 @@ Important usage rule: run `npm run format` from the repository root. If working 
 
 ## Gate 1 — Deterministic dependency baseline
 
-Status: **Partially implemented; generated lock data remains required**
+Status: **In verification; npm doctor Windows detection fixed in v0.4**
 
 Implemented:
 
 - root `npm run doctor` prerequisite checker
+- Windows-safe npm detection without relying on `execFileSync('npm')`
 - dependency checks for Node/npm/Go, local Prettier, `package-lock.json`, and history-service `go.sum`
 
 Required generated artifacts:
@@ -39,7 +40,7 @@ These files must be committed before CI is considered reproducible.
 
 ## Gate 2 — Executable build, lint, format, and test baseline
 
-Status: **Partially verified**
+Status: **Active; formatting verified, lint defects fixed in v0.4 and awaiting developer re-run**
 
 Implemented:
 
@@ -54,15 +55,15 @@ Implemented:
 Verified in this build environment:
 
 - Go formatting check passes
+- repository-wide Prettier check passes on the developer workstation
 - VIN decoder tests pass
 
 Pending local verification after dependency lock generation:
 
 - API gateway tests
-- ESLint across web and gateway
+- ESLint across web and gateway — prior run exposed one gateway error and two React warnings; fixes are included in v0.4 and must be re-run
 - Vite production build
 - history-service full compile/test
-- repository-wide Prettier pass/check
 
 ## Gate 3 — Backend correctness and service contracts
 
@@ -85,6 +86,14 @@ Still required before Gate 3 is complete:
 - graceful internal network/timeout error mapping
 - readiness endpoints distinct from liveness endpoints
 - repository/service shutdown behavior validation
+
+### v0.4 quality-gate corrections
+
+- API gateway imports `setTimeout` from `node:timers`, eliminating the ESLint `no-undef` failure.
+- Go format checker no longer enables a shell when spawning `gofmt`, eliminating Node DEP0190 and reducing command-injection surface.
+- auth state was split into `auth-context.js`, `AuthProvider.jsx`, and `useAuth.js` so component modules remain Fast Refresh compatible.
+- auth callbacks now use `useCallback`, giving `useMemo` complete and stable dependencies.
+- doctor npm detection now works when run through npm on Windows and has a safe `cmd.exe` fallback for direct invocation.
 
 ## Next gates
 

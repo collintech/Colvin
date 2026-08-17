@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 
 const result = spawnSync('gofmt', ['-l', 'apps/services-go'], {
   encoding: 'utf8',
-  shell: process.platform === 'win32',
+  shell: false,
 });
 
 if (result.error) {

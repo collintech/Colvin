@@ -1,0 +1,10 @@
+COLVIN v0.4 PATCH
+
+1. Back up your current Colvin working tree or create a Git commit.
+2. Overlay this patch directory onto the repository root.
+3. Delete: apps/web-client/src/features/auth/AuthContext.jsx
+4. KEEP your locally generated package-lock.json and apps/services-go/history-service/go.sum.
+5. From the repository root run:
+   npm run doctor
+   npm run format
+   npm run quality

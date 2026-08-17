@@ -28,10 +28,11 @@ This file is the compact source of truth for continuing the production build in 
 - VS Code workspace formatting configuration
 - root and workspace `format` / `format:check` commands
 - product identity changed to Colvin in root package, browser identity, token storage, JWT issuer/audience, and Go module names
+- developer verified repository-wide Prettier formatting successfully
 
 ### Gate 1 — dependency reproducibility
 
-In progress.
+In progress. The Windows npm detection false-negative in `npm run doctor` is fixed in v0.4.
 
 Required generated artifacts:
 
@@ -57,7 +58,7 @@ Verified in the build environment:
 
 Not yet verified here because external dependency installation is unavailable:
 
-- Node test/lint/build suite
+- Node test/lint/build suite — developer run reached lint; v0.4 fixes the reported gateway error and React warnings
 - history-service compile/test after `go.sum` generation
 
 ## Exact local verification sequence
@@ -73,6 +74,8 @@ npm run doctor
 npm run format
 npm run quality
 ```
+
+For v0.4, keep the `package-lock.json` and `apps/services-go/history-service/go.sum` generated on the developer workstation. Do not overwrite or delete them when applying the patch.
 
 Commit both generated lockfiles after they are produced.
 

@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import AppLayout from '../components/AppLayout.jsx';
-import { useAuth } from '../features/auth/AuthContext.jsx';
+import { useAuth } from '../features/auth/useAuth.js';
 import LoginPage from '../features/auth/LoginPage.jsx';
 import RegisterPage from '../features/auth/RegisterPage.jsx';
 import DashboardPage from '../features/vehicle/DashboardPage.jsx';

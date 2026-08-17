@@ -23,6 +23,21 @@ function version(command, args = ['--version']) {
   }
 }
 
+function detectNpmVersion() {
+  const userAgent = process.env.npm_config_user_agent;
+  const npmMatch = userAgent?.match(/(?:^|\s)npm\/([^\s]+)/);
+
+  if (npmMatch) {
+    return npmMatch[1];
+  }
+
+  if (process.platform === 'win32') {
+    return version(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', 'npm --version']);
+  }
+
+  return version('npm');
+}
+
 const pkgPath = path.join(root, 'package.json');
 if (!existsSync(pkgPath)) {
   fail('Run this command from the Colvin repository root.');
@@ -35,8 +50,10 @@ if (!existsSync(pkgPath)) {
 
 const nodeVersion = version('node');
 nodeVersion ? pass(`Node available: ${nodeVersion}`) : fail('Node is not available');
-const npmVersion = version('npm');
+
+const npmVersion = detectNpmVersion();
 npmVersion ? pass(`npm available: ${npmVersion}`) : fail('npm is not available');
+
 const goVersion = version('go', ['version']);
 goVersion ? pass(`Go available: ${goVersion}`) : fail('Go is not available');
 

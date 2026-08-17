@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router-dom';
 
-import { useAuth } from '../features/auth/AuthContext.jsx';
+import { useAuth } from '../features/auth/useAuth.js';
 
 export default function AppLayout() {
   const { user, logout } = useAuth();

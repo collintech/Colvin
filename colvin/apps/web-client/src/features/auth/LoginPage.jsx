@@ -2,25 +2,28 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthForm from './AuthForm.jsx';
 import { loginRequest } from './auth.api.js';
-import { useAuth } from './AuthContext.jsx';
+import { useAuth } from './useAuth.js';
+
 export default function LoginPage() {
-  const [e, setE] = useState('');
-  const nav = useNavigate();
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
   const { save } = useAuth();
-  const submit = async (v) => {
+
+  const submit = async (values) => {
     try {
-      save(await loginRequest(v));
-      nav('/');
-    } catch (err) {
-      setE(err.response?.data?.error?.message || 'Login failed');
+      save(await loginRequest(values));
+      navigate('/');
+    } catch (requestError) {
+      setError(requestError.response?.data?.error?.message || 'Login failed');
     }
   };
+
   return (
     <main className="auth-page">
       <section>
-        <h1>VIN Scanner</h1>
+        <h1>Colvin</h1>
         <p>Sign in to access secure vehicle reports.</p>
-        <AuthForm label="Login" onSubmit={submit} serverError={e} />
+        <AuthForm label="Login" onSubmit={submit} serverError={error} />
         <p>
           New user? <Link to="/register">Create account</Link>
         </p>

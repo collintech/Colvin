@@ -1,21 +1,27 @@
-import { createContext, useContext, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { clearSession, getSession, setSession } from '../../services/tokenStore.js';
 import { logoutRequest } from './auth.api.js';
-const AuthContext = createContext(null);
+import { AuthContext } from './auth-context.js';
+
 export function AuthProvider({ children }) {
   const [session, setState] = useState(() => getSession());
-  const save = (value) => {
+
+  const save = useCallback((value) => {
     setSession(value);
     setState(value);
-  };
-  const logout = async () => {
+  }, []);
+
+  const logout = useCallback(async () => {
     try {
-      if (session?.refreshToken) await logoutRequest(session.refreshToken);
+      if (session?.refreshToken) {
+        await logoutRequest(session.refreshToken);
+      }
     } finally {
       clearSession();
       setState(null);
     }
-  };
+  }, [session?.refreshToken]);
+
   const value = useMemo(
     () => ({
       session,
@@ -24,8 +30,8 @@ export function AuthProvider({ children }) {
       save,
       logout,
     }),
-    [session],
+    [logout, save, session],
   );
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-export const useAuth = () => useContext(AuthContext);
