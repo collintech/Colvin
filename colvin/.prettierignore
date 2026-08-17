@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+coverage/
+.vite/
+*.min.js
+*.map
+.env
+.env.*
+!.env.example
+postgres-data/
+redis-data/

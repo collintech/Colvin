@@ -1,0 +1,11 @@
+import { Router } from 'express';
+import { authenticate } from '../middleware/authenticate.js';
+import { validate } from '../middleware/validate.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { decodeVinSchema, vinParamsSchema } from '../validators/vehicle.schemas.js';
+import * as controller from '../controllers/vehicle.controller.js';
+const router = Router();
+router.use(authenticate);
+router.post('/decode', validate(decodeVinSchema), asyncHandler(controller.decode));
+router.get('/:vin/report', validate(vinParamsSchema), asyncHandler(controller.report));
+export default router;

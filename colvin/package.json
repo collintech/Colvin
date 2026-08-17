@@ -1,0 +1,33 @@
+{
+  "name": "colvin",
+  "private": true,
+  "workspaces": [
+    "apps/web-client",
+    "apps/api-gateway"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace apps/web-client run dev",
+    "dev:api": "npm --workspace apps/api-gateway run dev",
+    "build:web": "npm --workspace apps/web-client run build",
+    "start:api": "npm --workspace apps/api-gateway run start",
+    "test:api": "npm --workspace apps/api-gateway run test",
+    "lint": "npm --workspace apps/web-client run lint && npm --workspace apps/api-gateway run lint",
+    "format": "prettier --write . && npm run format:go",
+    "format:check": "prettier --check . && npm run format:go:check",
+    "format:go": "gofmt -w apps/services-go",
+    "format:go:check": "node scripts/check-go-format.mjs",
+    "quality": "npm run format:check && npm run lint && npm run test && npm run build",
+    "format:web": "npm --workspace apps/web-client run format",
+    "format:api": "npm --workspace apps/api-gateway run format",
+    "build": "npm run build:web",
+    "test:go": "go -C apps/services-go/vin-decoder test ./... && go -C apps/services-go/history-service test ./...",
+    "test": "npm run test:api && npm run test:go",
+    "doctor": "node scripts/doctor.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "prettier": "3.9.6"
+  }
+}

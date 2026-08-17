@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.vscode/
+.idea/
+postgres-data/
+redis-data/
+
+# Keep shared Colvin workspace policy under version control.
+!.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
