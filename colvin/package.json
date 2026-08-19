@@ -22,7 +22,9 @@
     "build": "npm run build:web",
     "test:go": "go -C apps/services-go/vin-decoder test ./... && go -C apps/services-go/history-service test ./...",
     "test": "npm run test:api && npm run test:go",
-    "doctor": "node scripts/doctor.mjs"
+    "doctor": "node scripts/doctor.mjs",
+    "db:migrate": "npm --workspace apps/api-gateway run db:migrate",
+    "test:history": "go -C apps/services-go/history-service test ./..."
   },
   "engines": {
     "node": ">=20"
