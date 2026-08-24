@@ -18,5 +18,6 @@
   },
   "gopls": {
     "formatting.gofumpt": false
-  }
+  },
+  "postman.settings.dotenv-detection-notification-visibility": false
 }
