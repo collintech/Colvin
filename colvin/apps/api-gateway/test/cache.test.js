@@ -12,7 +12,8 @@ process.env.VIN_DECODER_URL = 'http://localhost:8081';
 process.env.HISTORY_SERVICE_URL = 'http://localhost:8082';
 process.env.LOG_LEVEL = 'silent';
 
-const { cacheGetJson, cacheSetJson, vehicleCacheKey } = await import('../src/cache/redis.js');
+const { cacheDelete, cacheGetJson, cacheSetJson, invalidateVehicleCache, vehicleCacheKey } =
+  await import('../src/cache/redis.js');
 
 test('vehicle cache keys are versioned and namespaced', () => {
   assert.equal(vehicleCacheKey('1HGCM82633A004352'), 'colvin:v1:vehicle:1HGCM82633A004352');
@@ -26,4 +27,22 @@ test('cache read failures degrade to a cache miss', async () => {
 test('cache write failures do not fail the request path', async () => {
   const client = { set: async () => Promise.reject(new Error('redis unavailable')) };
   assert.equal(await cacheSetJson('colvin:v1:test', { ok: true }, 60, client), false);
+});
+
+test('cache delete failures degrade without failing the request path', async () => {
+  const client = { del: async () => Promise.reject(new Error('redis unavailable')) };
+  assert.equal(await cacheDelete('colvin:v1:test', client), false);
+});
+
+test('vehicle invalidation uses the canonical vehicle cache key', async () => {
+  const deleted = [];
+  const client = {
+    async del(key) {
+      deleted.push(key);
+      return 1;
+    },
+  };
+
+  assert.equal(await invalidateVehicleCache('1HGCM82633A004352', client), true);
+  assert.deepEqual(deleted, ['colvin:v1:vehicle:1HGCM82633A004352']);
 });

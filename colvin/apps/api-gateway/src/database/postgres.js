@@ -16,3 +16,4 @@ export const pool = new Pool({
 pool.on('error', (error) => logger.error({ error }, 'Unexpected PostgreSQL pool error'));
 
 export const query = (text, params = []) => pool.query(text, params);
+export const closePostgres = () => pool.end();

@@ -85,3 +85,45 @@ func TestRepositoryByVINReturnsEmptySliceForUnknownVIN(t *testing.T) {
 		t.Fatalf("expected non-nil empty slice, got %#v", records)
 	}
 }
+
+func TestRepositoryByVINReturnsErrorWhenContextIsCancelled(t *testing.T) {
+	databaseURL := os.Getenv("INTEGRATION_DATABASE_URL")
+	if databaseURL == "" {
+		t.Fatal("INTEGRATION_DATABASE_URL is required")
+	}
+
+	db, err := pgxpool.New(context.Background(), databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err = NewRepository(db).ByVIN(ctx, "1HGCM82633A004352")
+	if err == nil {
+		t.Fatal("expected cancelled context to return an error")
+	}
+}
+
+func TestRepositoryByVINReturnsErrorAfterPoolIsClosed(t *testing.T) {
+	databaseURL := os.Getenv("INTEGRATION_DATABASE_URL")
+	if databaseURL == "" {
+		t.Fatal("INTEGRATION_DATABASE_URL is required")
+	}
+
+	db, err := pgxpool.New(context.Background(), databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_, err = NewRepository(db).ByVIN(ctx, "1HGCM82633A004352")
+	if err == nil {
+		t.Fatal("expected closed pool to return an error")
+	}
+}

@@ -4,6 +4,7 @@ import { getHistory } from '../clients/history.client.js';
 import { env } from '../config/env.js';
 import { findVehicleByVin, logLookup, upsertVehicle } from '../repositories/vehicle.repository.js';
 import { sha256 } from '../utils/hash.js';
+import { singleFlight } from '../utils/single-flight.js';
 
 export async function decodeAndStoreVin({ vin, user, ip, userAgent }) {
   const cacheKey = vehicleCacheKey(vin);
@@ -11,50 +12,29 @@ export async function decodeAndStoreVin({ vin, user, ip, userAgent }) {
   try {
     const cached = await cacheGetJson(cacheKey);
     if (cached) {
-      await logLookup({
-        userId: user.id,
-        vin,
-        success: true,
-        sourceIpHash: sha256(ip ?? ''),
-        userAgent,
-      });
+      await recordLookup({ user, vin, ip, userAgent, success: true });
       return { ...cached, cache: 'hit' };
     }
 
-    const existing = await findVehicleByVin(vin);
-    if (existing?.decoded_at) {
-      const response = mapVehicle(existing);
-      await cacheSetJson(cacheKey, response, env.VEHICLE_CACHE_TTL_SECONDS);
-      await logLookup({
-        userId: user.id,
-        vin,
-        success: true,
-        sourceIpHash: sha256(ip ?? ''),
-        userAgent,
-      });
-      return { ...response, cache: 'database' };
-    }
+    const result = await singleFlight(`vehicle-load:${vin}`, async () => {
+      const existing = await findVehicleByVin(vin);
+      if (existing?.decoded_at) {
+        const response = mapVehicle(existing);
+        await cacheSetJson(cacheKey, response, env.VEHICLE_CACHE_TTL_SECONDS);
+        return { response, cache: 'database' };
+      }
 
-    const decoded = await decodeVin(vin);
-    const vehicle = await upsertVehicle(decoded);
-    const response = mapVehicle(vehicle);
-    await cacheSetJson(cacheKey, response, env.VEHICLE_CACHE_TTL_SECONDS);
-    await logLookup({
-      userId: user.id,
-      vin,
-      success: true,
-      sourceIpHash: sha256(ip ?? ''),
-      userAgent,
+      const decoded = await decodeVin(vin);
+      const vehicle = await upsertVehicle(decoded);
+      const response = mapVehicle(vehicle);
+      await cacheSetJson(cacheKey, response, env.VEHICLE_CACHE_TTL_SECONDS);
+      return { response, cache: 'miss' };
     });
-    return { ...response, cache: 'miss' };
+
+    await recordLookup({ user, vin, ip, userAgent, success: true });
+    return { ...result.response, cache: result.cache };
   } catch (error) {
-    await logLookup({
-      userId: user.id,
-      vin,
-      success: false,
-      sourceIpHash: sha256(ip ?? ''),
-      userAgent,
-    }).catch(() => {});
+    await recordLookup({ user, vin, ip, userAgent, success: false }).catch(() => {});
     throw error;
   }
 }
@@ -64,6 +44,16 @@ export async function getVehicleReport(vin) {
   const decoded = vehicle ? mapVehicle(vehicle) : await decodeVin(vin);
   const history = await getHistory(vin);
   return { vehicle: decoded, history: history.records, summary: history.summary };
+}
+
+function recordLookup({ user, vin, ip, userAgent, success }) {
+  return logLookup({
+    userId: user.id,
+    vin,
+    success,
+    sourceIpHash: sha256(ip ?? ''),
+    userAgent,
+  });
 }
 
 function mapVehicle(row) {

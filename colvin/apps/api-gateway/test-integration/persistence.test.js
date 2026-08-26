@@ -5,6 +5,8 @@ import test from 'node:test';
 import Redis from 'ioredis';
 import pg from 'pg';
 
+import { withTransaction } from '../src/database/transaction.js';
+
 const { Pool } = pg;
 const databaseUrl = process.env.INTEGRATION_DATABASE_URL;
 const redisUrl = process.env.INTEGRATION_REDIS_URL;
@@ -40,6 +42,39 @@ test('database migrations and core tables are present', async () => {
   );
 });
 
+test('transactions commit successful writes', async () => {
+  const vin = `1HGCM8263${randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase()}`.slice(0, 17);
+
+  try {
+    await withTransaction(pool, async (client) => {
+      await client.query('INSERT INTO vehicles(vin, make) VALUES($1, $2)', [
+        vin,
+        'TransactionTest',
+      ]);
+    });
+
+    const result = await pool.query('SELECT make FROM vehicles WHERE vin=$1', [vin]);
+    assert.equal(result.rows[0]?.make, 'TransactionTest');
+  } finally {
+    await pool.query('DELETE FROM vehicles WHERE vin=$1', [vin]);
+  }
+});
+
+test('transactions roll back failed writes', async () => {
+  const vin = `JH4KA8260${randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase()}`.slice(0, 17);
+
+  await assert.rejects(
+    withTransaction(pool, async (client) => {
+      await client.query('INSERT INTO vehicles(vin, make) VALUES($1, $2)', [vin, 'ShouldRollback']);
+      throw new Error('force rollback');
+    }),
+    /force rollback/,
+  );
+
+  const result = await pool.query('SELECT 1 FROM vehicles WHERE vin=$1', [vin]);
+  assert.equal(result.rowCount, 0);
+});
+
 test('Redis supports isolated set/get/TTL behavior', async () => {
   const key = `colvin:test:${randomUUID()}`;
   await redis.set(key, JSON.stringify({ ok: true }), 'EX', 60);
@@ -51,4 +86,14 @@ test('Redis supports isolated set/get/TTL behavior', async () => {
   } finally {
     await redis.del(key);
   }
+});
+
+test('Redis invalidation removes a cached vehicle key', async () => {
+  const vin = '1HGCM82633A004352';
+  const key = `colvin:v1:vehicle:${vin}`;
+  await redis.set(key, JSON.stringify({ vin }), 'EX', 60);
+
+  assert.equal(await redis.exists(key), 1);
+  await redis.del(key);
+  assert.equal(await redis.exists(key), 0);
 });

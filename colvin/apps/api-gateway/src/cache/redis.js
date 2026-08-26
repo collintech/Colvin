@@ -24,6 +24,21 @@ export async function connectRedis() {
   if (redis.status === 'wait') await redis.connect();
 }
 
+export async function closeRedis(client = redis) {
+  if (client.status === 'end') return;
+  if (client.status === 'wait') {
+    client.disconnect();
+    return;
+  }
+
+  try {
+    await client.quit();
+  } catch (error) {
+    logger.warn({ error }, 'Redis graceful shutdown failed; disconnecting');
+    client.disconnect();
+  }
+}
+
 export async function cacheGetJson(key, client = redis) {
   try {
     const value = await client.get(key);
@@ -43,6 +58,20 @@ export async function cacheSetJson(key, value, ttlSeconds, client = redis) {
     logger.warn({ error, key }, 'Redis cache write failed; continuing without cache');
     return false;
   }
+}
+
+export async function cacheDelete(key, client = redis) {
+  try {
+    await client.del(key);
+    return true;
+  } catch (error) {
+    logger.warn({ error, key }, 'Redis cache invalidation failed; continuing without cache');
+    return false;
+  }
+}
+
+export function invalidateVehicleCache(vin, client = redis) {
+  return cacheDelete(vehicleCacheKey(vin), client);
 }
 
 export async function pingRedis(client = redis) {

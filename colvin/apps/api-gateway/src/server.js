@@ -1,9 +1,10 @@
-import { setTimeout } from 'node:timers';
+import { clearTimeout, setTimeout } from 'node:timers';
+
 import { app } from './app.js';
+import { closeRedis, connectRedis } from './cache/redis.js';
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
-import { pool } from './database/postgres.js';
-import { connectRedis, redis } from './cache/redis.js';
+import { closePostgres, pool } from './database/postgres.js';
 
 async function start() {
   await pool.query('SELECT 1');
@@ -15,15 +16,20 @@ async function start() {
     logger.info({ port: env.API_PORT }, 'API gateway started'),
   );
 
+  let shuttingDown = false;
   const shutdown = async (signal) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     logger.info({ signal }, 'Shutting down');
 
+    const forceExit = setTimeout(() => process.exit(1), 10_000);
+    forceExit.unref();
+
     server.close(async () => {
-      await Promise.allSettled([pool.end(), redis.quit()]);
+      await Promise.allSettled([closePostgres(), closeRedis()]);
+      clearTimeout(forceExit);
       process.exit(0);
     });
-
-    setTimeout(() => process.exit(1), 10_000).unref();
   };
 
   process.on('SIGTERM', shutdown);
