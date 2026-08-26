@@ -1,13 +1,15 @@
-import { redis } from '../cache/redis.js';
+import { cacheGetJson, cacheSetJson, vehicleCacheKey } from '../cache/redis.js';
 import { decodeVin } from '../clients/vinDecoder.client.js';
 import { getHistory } from '../clients/history.client.js';
+import { env } from '../config/env.js';
 import { findVehicleByVin, logLookup, upsertVehicle } from '../repositories/vehicle.repository.js';
 import { sha256 } from '../utils/hash.js';
-const CACHE_TTL_SECONDS = 3600;
+
 export async function decodeAndStoreVin({ vin, user, ip, userAgent }) {
-  const cacheKey = `vehicle:${vin}`;
+  const cacheKey = vehicleCacheKey(vin);
+
   try {
-    const cached = await redis.get(cacheKey);
+    const cached = await cacheGetJson(cacheKey);
     if (cached) {
       await logLookup({
         userId: user.id,
@@ -16,12 +18,13 @@ export async function decodeAndStoreVin({ vin, user, ip, userAgent }) {
         sourceIpHash: sha256(ip ?? ''),
         userAgent,
       });
-      return { ...JSON.parse(cached), cache: 'hit' };
+      return { ...cached, cache: 'hit' };
     }
+
     const existing = await findVehicleByVin(vin);
     if (existing?.decoded_at) {
       const response = mapVehicle(existing);
-      await redis.set(cacheKey, JSON.stringify(response), 'EX', CACHE_TTL_SECONDS);
+      await cacheSetJson(cacheKey, response, env.VEHICLE_CACHE_TTL_SECONDS);
       await logLookup({
         userId: user.id,
         vin,
@@ -31,10 +34,11 @@ export async function decodeAndStoreVin({ vin, user, ip, userAgent }) {
       });
       return { ...response, cache: 'database' };
     }
+
     const decoded = await decodeVin(vin);
     const vehicle = await upsertVehicle(decoded);
     const response = mapVehicle(vehicle);
-    await redis.set(cacheKey, JSON.stringify(response), 'EX', CACHE_TTL_SECONDS);
+    await cacheSetJson(cacheKey, response, env.VEHICLE_CACHE_TTL_SECONDS);
     await logLookup({
       userId: user.id,
       vin,
@@ -54,12 +58,14 @@ export async function decodeAndStoreVin({ vin, user, ip, userAgent }) {
     throw error;
   }
 }
+
 export async function getVehicleReport(vin) {
   const vehicle = await findVehicleByVin(vin);
   const decoded = vehicle ? mapVehicle(vehicle) : await decodeVin(vin);
   const history = await getHistory(vin);
   return { vehicle: decoded, history: history.records, summary: history.summary };
 }
+
 function mapVehicle(row) {
   return {
     id: row.id,

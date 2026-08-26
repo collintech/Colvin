@@ -7,7 +7,9 @@ import { connectRedis, redis } from './cache/redis.js';
 
 async function start() {
   await pool.query('SELECT 1');
-  await connectRedis();
+  await connectRedis().catch((error) =>
+    logger.warn({ error }, 'Redis unavailable at startup; continuing in degraded mode'),
+  );
 
   const server = app.listen(env.API_PORT, () =>
     logger.info({ port: env.API_PORT }, 'API gateway started'),

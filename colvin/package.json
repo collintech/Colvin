@@ -24,7 +24,10 @@
     "test": "npm run test:api && npm run test:go",
     "doctor": "node scripts/doctor.mjs",
     "db:migrate": "npm --workspace apps/api-gateway run db:migrate",
-    "test:history": "go -C apps/services-go/history-service test ./..."
+    "test:history": "go -C apps/services-go/history-service test ./...",
+    "infra:up": "docker compose up -d postgres redis",
+    "infra:ps": "docker compose ps",
+    "test:integration": "node scripts/run-integration-tests.mjs"
   },
   "engines": {
     "node": ">=20"

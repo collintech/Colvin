@@ -10,6 +10,7 @@ import pinoHttp from 'pino-http';
 
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
+import { getReadiness } from './health/readiness.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes.js';
 import vehicleRoutes from './routes/vehicle.routes.js';
@@ -54,6 +55,10 @@ app.use(
 );
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/ready', async (_req, res) => {
+  const readiness = await getReadiness();
+  res.status(readiness.ready ? 200 : 503).json(readiness);
+});
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/vehicles', vehicleRoutes);
 app.use(notFound);

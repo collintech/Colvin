@@ -86,3 +86,12 @@ Commit both generated lockfiles after they are produced.
 3. Gate 4: introduce explicit database migrations and integration testing for PostgreSQL/Redis.
 4. Gate 5: harden authentication, authorization, refresh-token transport, and account security.
 5. Gate 6+: real VIN/history providers, frontend completion, security testing, Docker hardening, CI/CD, staging, observability, backup/restore, disaster recovery, and production launch.
+
+## v0.7 / Gate 4B
+
+- PostgreSQL remains authoritative; Redis is explicitly degradable.
+- API readiness distinguishes PostgreSQL failure (`not_ready`) from Redis failure (`degraded`).
+- Added versioned vehicle-cache keys and configurable cache TTL.
+- Added configurable PostgreSQL pool limits/timeouts.
+- Added real PostgreSQL/Redis integration test runner (`npm run test:integration`).
+- Added Go history repository integration tests using the migrated local PostgreSQL database.

@@ -21,18 +21,13 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command:
-      [
-        'redis-server',
-        '--appendonly',
-        'yes',
-        '--requirepass',
-        '${REDIS_PASSWORD:-change-this-redis-password}',
-      ]
+    command: ['redis-server', '--appendonly', 'yes', '--requirepass', '${REDIS_PASSWORD}']
     volumes:
       - redis-data:/data
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
     healthcheck:
-      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD:-change-this-redis-password}', 'PING']
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'PING']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -79,7 +74,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      REDIS_URL: redis://:${REDIS_PASSWORD:-change-this-redis-password}@redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
     depends_on:
       postgres:
         condition: service_healthy

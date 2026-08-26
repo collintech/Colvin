@@ -34,7 +34,9 @@ func (r *Repository) ByVIN(ctx context.Context, vin string) ([]Record, error) {
 		if err := rows.Scan(&rec.ID, &rec.RecordType, &rec.OccurredAt, &rec.Country, &rec.Summary, &details, &rec.SourceName, &rec.SourceReference, &rec.Confidence); err != nil {
 			return nil, err
 		}
-		_ = json.Unmarshal(details, &rec.Details)
+		if err := json.Unmarshal(details, &rec.Details); err != nil {
+			return nil, err
+		}
 		records = append(records, rec)
 	}
 	return records, rows.Err()

@@ -1,10 +1,17 @@
-COLVIN v0.4 PATCH
+Colvin v0.7.2 -> v0.7.3 integration test scope fix
 
-1. Back up your current Colvin working tree or create a Git commit.
-2. Overlay this patch directory onto the repository root.
-3. Delete: apps/web-client/src/features/auth/AuthContext.jsx
-4. KEEP your locally generated package-lock.json and apps/services-go/history-service/go.sum.
-5. From the repository root run:
-   npm run doctor
-   npm run format
-   npm run quality
+Apply this patch over the existing Colvin repository root.
+
+Changed file:
+- scripts/run-integration-tests.mjs
+
+Reason:
+Node's test runner does not treat a directory argument as "run all tests under this directory" in this execution path. The integration runner now targets test-integration/**/*.test.js explicitly.
+
+After applying:
+1. npm run format
+2. npm run quality
+3. npm run infra:up
+4. npm run infra:ps
+5. npm run db:migrate
+6. npm run test:integration
