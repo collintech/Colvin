@@ -27,18 +27,25 @@ test('database migrations and core tables are present', async () => {
     SELECT to_regclass('public.users') AS users,
            to_regclass('public.vehicles') AS vehicles,
            to_regclass('public.vehicle_history_records') AS history,
-           to_regclass('public.schema_migrations') AS migrations
+           to_regclass('public.schema_migrations') AS migrations,
+           to_regclass('public.auth_audit_events') AS auth_audit
   `);
 
   assert.equal(tables.rows[0].users, 'users');
   assert.equal(tables.rows[0].vehicles, 'vehicles');
   assert.equal(tables.rows[0].history, 'vehicle_history_records');
   assert.equal(tables.rows[0].migrations, 'schema_migrations');
+  assert.equal(tables.rows[0].auth_audit, 'auth_audit_events');
 
   const migrations = await pool.query('SELECT filename FROM schema_migrations ORDER BY filename');
   assert.deepEqual(
     migrations.rows.map((row) => row.filename),
-    ['001_init.sql', '002_operational_indexes.sql', '003_auth_session_hardening.sql'],
+    [
+      '001_init.sql',
+      '002_operational_indexes.sql',
+      '003_auth_session_hardening.sql',
+      '004_auth_abuse_audit.sql',
+    ],
   );
 
   const refreshColumns = await pool.query(`
@@ -107,4 +114,23 @@ test('Redis invalidation removes a cached vehicle key', async () => {
   assert.equal(await redis.exists(key), 1);
   await redis.del(key);
   assert.equal(await redis.exists(key), 0);
+});
+
+test('Redis distributed auth counter is shared and expires', async () => {
+  const key = `colvin:v1:auth-limit:test:ip:${randomUUID()}`;
+  const script = `
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
+return {count, redis.call('TTL', KEYS[1])}
+`;
+
+  try {
+    const first = await redis.eval(script, 1, key, 60);
+    const second = await redis.eval(script, 1, key, 60);
+    assert.deepEqual(first.map(Number), [1, 60]);
+    assert.equal(Number(second[0]), 2);
+    assert.ok(Number(second[1]) > 0 && Number(second[1]) <= 60);
+  } finally {
+    await redis.del(key);
+  }
 });

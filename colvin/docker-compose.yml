@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
     environment:
       PORT: 8081
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
     expose: ['8081']
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://localhost:8081/health']
@@ -54,8 +54,8 @@ services:
     restart: unless-stopped
     environment:
       PORT: 8082
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
-      DATABASE_URL: ${DATABASE_URL}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
+      DATABASE_URL: ${DATABASE_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,7 +93,7 @@ services:
       context: .
       dockerfile: apps/web-client/Dockerfile
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:4000/api/v1}
     restart: unless-stopped
     depends_on: [api-gateway]
     ports:

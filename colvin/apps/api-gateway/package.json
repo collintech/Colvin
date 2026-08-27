@@ -7,7 +7,7 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "test": "node --test \"test/**/*.test.js\"",
-    "lint": "eslint src test",
+    "lint": "eslint src test test-integration scripts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:migrate": "node scripts/migrate.mjs"

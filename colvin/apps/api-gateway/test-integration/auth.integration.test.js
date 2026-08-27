@@ -5,6 +5,9 @@ import test from 'node:test';
 import pg from 'pg';
 import request from 'supertest';
 
+import { closeRedis } from '../src/cache/redis.js';
+import { closePostgres } from '../src/database/postgres.js';
+
 const { Pool } = pg;
 const databaseUrl = process.env.INTEGRATION_DATABASE_URL;
 if (!databaseUrl) throw new Error('INTEGRATION_DATABASE_URL is required');
@@ -18,7 +21,7 @@ function cookiePair(response) {
 }
 
 test.after(async () => {
-  await pool.end();
+  await Promise.allSettled([pool.end(), closePostgres(), closeRedis()]);
 });
 
 test('browser auth keeps refresh token HttpOnly and rotates/revokes token families', async () => {
@@ -39,6 +42,13 @@ test('browser auth keeps refresh token HttpOnly and rotates/revokes token famili
 
     const firstCookie = cookiePair(registration);
     assert.ok(firstCookie);
+
+    const login = await request(app)
+      .post('/api/v1/auth/login')
+      .set('Origin', origin)
+      .send({ email, password: 'ColvinSecure12345' })
+      .expect(200);
+    assert.ok(login.body.data.accessToken);
 
     const me = await request(app)
       .get('/api/v1/auth/me')
@@ -68,8 +78,28 @@ test('browser auth keeps refresh token HttpOnly and rotates/revokes token famili
       .set('Origin', origin)
       .set('Cookie', secondCookie)
       .expect(401);
+
+    const audit = await pool.query(
+      `SELECT event_type, outcome
+       FROM auth_audit_events
+       WHERE user_id = $1
+       ORDER BY id`,
+      [userId],
+    );
+    assert.ok(
+      audit.rows.some((row) => row.event_type === 'auth.register' && row.outcome === 'success'),
+    );
+    assert.ok(
+      audit.rows.some((row) => row.event_type === 'auth.login' && row.outcome === 'success'),
+    );
+    assert.ok(
+      audit.rows.some((row) => row.event_type === 'auth.refresh' && row.outcome === 'success'),
+    );
   } finally {
-    if (userId) await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    if (userId) {
+      await pool.query('DELETE FROM auth_audit_events WHERE user_id = $1', [userId]);
+      await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    }
   }
 });
 

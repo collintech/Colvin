@@ -1,9 +1,10 @@
+import dotenv from 'dotenv';
+import { log } from 'node:console';
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import dotenv from 'dotenv';
 import pg from 'pg';
 
 const { Client } = pg;
@@ -55,7 +56,7 @@ try {
         throw new Error(`Migration ${filename} changed after it was applied`);
       }
 
-      console.log(`skip ${filename}`);
+      log(`skip ${filename}`);
       continue;
     }
 
@@ -68,7 +69,7 @@ try {
         checksum,
       ]);
       await client.query('COMMIT');
-      console.log(`applied ${filename}`);
+      log(`applied ${filename}`);
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;

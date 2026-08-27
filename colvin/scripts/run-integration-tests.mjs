@@ -42,6 +42,8 @@ const integrationEnv = {
   INTERNAL_API_KEY: process.env.INTERNAL_API_KEY || 'colvin-integration-internal-key',
   VIN_DECODER_URL: process.env.VIN_DECODER_URL || 'http://localhost:8081',
   HISTORY_SERVICE_URL: process.env.HISTORY_SERVICE_URL || 'http://localhost:8082',
+  LOG_LEVEL: 'silent',
+  AUTH_LIMIT_NAMESPACE: `integration-${process.pid}-${Date.now()}`,
 };
 
 run(
@@ -61,7 +63,7 @@ run(
   root,
 );
 
-console.log('Colvin persistence and auth integration tests passed.');
+console.log('Colvin persistence, auth, audit, and abuse-control integration tests passed.');
 
 function run(command, args, cwd) {
   const result = spawnSync(command, args, {

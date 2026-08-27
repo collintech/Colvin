@@ -16,6 +16,17 @@ const schema = z.object({
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('7d'),
   BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
+  AUTH_LOGIN_ACCOUNT_LIMIT: z.coerce.number().int().min(1).max(100).default(10),
+  AUTH_LOGIN_IP_LIMIT: z.coerce.number().int().min(1).max(500).default(30),
+  AUTH_LOGIN_WINDOW_SECONDS: z.coerce.number().int().min(60).max(86400).default(900),
+  AUTH_REGISTER_IP_LIMIT: z.coerce.number().int().min(1).max(100).default(10),
+  AUTH_REGISTER_WINDOW_SECONDS: z.coerce.number().int().min(60).max(86400).default(3600),
+  AUTH_REFRESH_IP_LIMIT: z.coerce.number().int().min(1).max(1000).default(120),
+  AUTH_REFRESH_WINDOW_SECONDS: z.coerce.number().int().min(60).max(3600).default(300),
+  AUTH_LIMIT_NAMESPACE: z
+    .string()
+    .regex(/^[a-zA-Z0-9_-]{1,64}$/)
+    .default('default'),
   INTERNAL_API_KEY: z.string().min(24),
   VIN_DECODER_URL: z.string().url(),
   HISTORY_SERVICE_URL: z.string().url(),
