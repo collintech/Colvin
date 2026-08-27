@@ -38,7 +38,18 @@ test('database migrations and core tables are present', async () => {
   const migrations = await pool.query('SELECT filename FROM schema_migrations ORDER BY filename');
   assert.deepEqual(
     migrations.rows.map((row) => row.filename),
-    ['001_init.sql', '002_operational_indexes.sql'],
+    ['001_init.sql', '002_operational_indexes.sql', '003_auth_session_hardening.sql'],
+  );
+
+  const refreshColumns = await pool.query(`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'refresh_tokens'
+      AND column_name IN ('family_id', 'replaced_by_hash')
+    ORDER BY column_name
+  `);
+  assert.deepEqual(
+    refreshColumns.rows.map((row) => row.column_name),
+    ['family_id', 'replaced_by_hash'],
   );
 });
 

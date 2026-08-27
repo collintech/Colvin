@@ -25,8 +25,23 @@ if (!databaseUrl || !redisUrl) {
 const integrationEnv = {
   ...process.env,
   NODE_ENV: 'test',
+  DATABASE_URL: databaseUrl,
+  REDIS_URL: redisUrl,
   INTEGRATION_DATABASE_URL: databaseUrl,
   INTEGRATION_REDIS_URL: redisUrl,
+
+  // Security-sensitive application config is required when the integration
+  // suite imports the real API Gateway. These defaults exist only in the
+  // child-process environment used by integration tests and never replace
+  // explicitly configured values from .env / CI.
+  WEB_ORIGIN: process.env.WEB_ORIGIN || 'http://localhost:5173',
+  JWT_ACCESS_SECRET:
+    process.env.JWT_ACCESS_SECRET || 'colvin-integration-access-secret-not-for-production',
+  JWT_REFRESH_SECRET:
+    process.env.JWT_REFRESH_SECRET || 'colvin-integration-refresh-secret-not-for-production',
+  INTERNAL_API_KEY: process.env.INTERNAL_API_KEY || 'colvin-integration-internal-key',
+  VIN_DECODER_URL: process.env.VIN_DECODER_URL || 'http://localhost:8081',
+  HISTORY_SERVICE_URL: process.env.HISTORY_SERVICE_URL || 'http://localhost:8082',
 };
 
 run(
@@ -46,7 +61,7 @@ run(
   root,
 );
 
-console.log('Colvin persistence integration tests passed.');
+console.log('Colvin persistence and auth integration tests passed.');
 
 function run(command, args, cwd) {
   const result = spawnSync(command, args, {

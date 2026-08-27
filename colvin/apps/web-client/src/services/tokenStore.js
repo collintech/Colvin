@@ -1,17 +1,13 @@
-const KEY = 'colvin-session';
+let session = null;
 
 export function getSession() {
-  try {
-    return JSON.parse(localStorage.getItem(KEY));
-  } catch {
-    return null;
-  }
+  return session;
 }
 
 export function setSession(value) {
-  localStorage.setItem(KEY, JSON.stringify(value));
+  session = value;
 }
 
 export function clearSession() {
-  localStorage.removeItem(KEY);
+  session = null;
 }

@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 import jwt from 'jsonwebtoken';
 
 import { env } from '../config/env.js';
@@ -10,6 +12,7 @@ export const signAccessToken = (user) =>
     expiresIn: env.JWT_ACCESS_TTL,
     issuer: ISSUER,
     audience: WEB_AUDIENCE,
+    jwtid: crypto.randomUUID(),
   });
 
 export const signRefreshToken = (user) =>
@@ -17,6 +20,7 @@ export const signRefreshToken = (user) =>
     expiresIn: env.JWT_REFRESH_TTL,
     issuer: ISSUER,
     audience: WEB_AUDIENCE,
+    jwtid: crypto.randomUUID(),
   });
 
 export const verifyAccessToken = (token) =>

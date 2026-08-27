@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer';
+
 import { z } from 'zod';
 
 const email = z
@@ -8,11 +10,11 @@ const email = z
 
 const password = z
   .string()
-  .min(12)
+  .min(12, 'Password must contain at least 12 characters')
   .max(128)
-  .regex(/[A-Z]/, 'Password requires an uppercase letter')
-  .regex(/[a-z]/, 'Password requires a lowercase letter')
-  .regex(/[0-9]/, 'Password requires a number');
+  .refine((value) => Buffer.byteLength(value, 'utf8') <= 72, {
+    message: 'Password is too long for the configured password hashing algorithm',
+  });
 
 export const registerSchema = z.object({
   body: z.object({ email, password }).strict(),
@@ -25,8 +27,4 @@ export const loginSchema = z.object({
       password: z.string().min(1).max(128),
     })
     .strict(),
-});
-
-export const refreshSchema = z.object({
-  body: z.object({ refreshToken: z.string().min(20).max(4096) }).strict(),
 });

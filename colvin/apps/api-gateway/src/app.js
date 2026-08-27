@@ -37,7 +37,7 @@ app.use(
     origin: env.WEB_ORIGIN,
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
-    credentials: false,
+    credentials: true,
     maxAge: 600,
   }),
 );

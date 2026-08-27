@@ -7,7 +7,8 @@ import RegisterPage from '../features/auth/RegisterPage.jsx';
 import DashboardPage from '../features/vehicle/DashboardPage.jsx';
 
 function Protected({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isBootstrapping } = useAuth();
+  if (isBootstrapping) return <main className="auth-page">Restoring secure session…</main>;
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 

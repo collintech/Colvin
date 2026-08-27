@@ -1,10 +1,12 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+
 import { clearSession, getSession, setSession } from '../../services/tokenStore.js';
-import { logoutRequest } from './auth.api.js';
+import { logoutRequest, refreshRequest } from './auth.api.js';
 import { AuthContext } from './auth-context.js';
 
 export function AuthProvider({ children }) {
   const [session, setState] = useState(() => getSession());
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
 
   const save = useCallback((value) => {
     setSession(value);
@@ -13,24 +15,45 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     try {
-      if (session?.refreshToken) {
-        await logoutRequest(session.refreshToken);
-      }
+      await logoutRequest();
     } finally {
       clearSession();
       setState(null);
     }
-  }, [session?.refreshToken]);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    refreshRequest()
+      .then((value) => {
+        if (active) save(value);
+      })
+      .catch(() => {
+        if (active) {
+          clearSession();
+          setState(null);
+        }
+      })
+      .finally(() => {
+        if (active) setIsBootstrapping(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [save]);
 
   const value = useMemo(
     () => ({
       session,
       user: session?.user,
       isAuthenticated: Boolean(session?.accessToken),
+      isBootstrapping,
       save,
       logout,
     }),
-    [logout, save, session],
+    [isBootstrapping, logout, save, session],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
