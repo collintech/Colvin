@@ -15,10 +15,16 @@ const schema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('7d'),
+  REFRESH_REUSE_GRACE_SECONDS: z.coerce.number().int().min(1).max(30).default(3),
   BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
   PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().min(5).max(120).default(30),
+  PASSWORD_RESET_MIN_RESPONSE_MS: z.coerce.number().int().min(100).max(5000).default(500),
+  PASSWORD_COMPROMISE_CHECK: z.enum(['disabled', 'hibp']).default('disabled'),
+  PASSWORD_COMPROMISE_TIMEOUT_MS: z.coerce.number().int().min(500).max(10000).default(4000),
   EMAIL_VERIFY_TTL_HOURS: z.coerce.number().int().min(1).max(72).default(24),
   EMAIL_PROVIDER: z.enum(['test', 'resend']).default('test'),
+  EMAIL_DELIVERY_ATTEMPTS: z.coerce.number().int().min(1).max(4).default(2),
+  EMAIL_DELIVERY_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
   RESEND_API_KEY: z.string().min(10).optional(),
   EMAIL_FROM: z.string().min(3).max(320).optional(),
   ACCOUNT_WEB_URL: z.string().url().optional(),
@@ -49,13 +55,16 @@ if (!parsed.success) {
 }
 const data = parsed.data;
 if (data.NODE_ENV === 'production') {
-  const deliveryErrors = {};
+  const productionErrors = {};
   if (data.EMAIL_PROVIDER !== 'resend')
-    deliveryErrors.EMAIL_PROVIDER = ['Must be resend in production'];
-  if (!data.RESEND_API_KEY) deliveryErrors.RESEND_API_KEY = ['Required in production'];
-  if (!data.EMAIL_FROM) deliveryErrors.EMAIL_FROM = ['Required in production'];
-  if (Object.keys(deliveryErrors).length > 0) {
-    console.error('Invalid production email configuration', deliveryErrors);
+    productionErrors.EMAIL_PROVIDER = ['Must be resend in production'];
+  if (!data.RESEND_API_KEY) productionErrors.RESEND_API_KEY = ['Required in production'];
+  if (!data.EMAIL_FROM) productionErrors.EMAIL_FROM = ['Required in production'];
+  if (data.PASSWORD_COMPROMISE_CHECK !== 'hibp') {
+    productionErrors.PASSWORD_COMPROMISE_CHECK = ['Must be hibp in production'];
+  }
+  if (Object.keys(productionErrors).length > 0) {
+    console.error('Invalid production security configuration', productionErrors);
     process.exit(1);
   }
 }

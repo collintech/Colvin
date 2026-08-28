@@ -1,4 +1,4 @@
-import api from '../../services/api.js';
+import api, { refreshSession } from '../../services/api.js';
 
 export const registerRequest = (payload) =>
   api.post('/auth/register', payload).then((response) => response.data.data);
@@ -6,10 +6,7 @@ export const registerRequest = (payload) =>
 export const loginRequest = (payload) =>
   api.post('/auth/login', payload).then((response) => response.data.data);
 
-export const refreshRequest = () =>
-  api
-    .post('/auth/refresh', undefined, { skipAuthRefresh: true })
-    .then((response) => response.data.data);
+export const refreshRequest = () => refreshSession();
 
 export const logoutRequest = () => api.post('/auth/logout', undefined, { skipAuthRefresh: true });
 

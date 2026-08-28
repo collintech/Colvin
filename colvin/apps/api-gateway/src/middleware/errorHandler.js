@@ -17,7 +17,7 @@ export function errorHandler(error, req, res, _next) {
     error: {
       code: error.code ?? 'INTERNAL_ERROR',
       message: status >= 500 ? 'An unexpected error occurred' : error.message,
-      ...(error.details ? { details: error.details } : {}),
+      ...(status < 500 && error.details ? { details: error.details } : {}),
     },
     requestId: req.id,
   });

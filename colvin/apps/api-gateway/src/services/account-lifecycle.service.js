@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 import bcrypt from 'bcryptjs';
 
@@ -22,6 +23,7 @@ import {
 } from '../repositories/user.repository.js';
 import { sha256 } from '../utils/hash.js';
 import { deliverAccountAction } from './account-email.service.js';
+import { assertPasswordNotCompromised } from './password-security.service.js';
 
 const PASSWORD_RESET_PURPOSE = 'password_reset';
 const EMAIL_VERIFY_PURPOSE = 'email_verify';
@@ -55,6 +57,7 @@ export async function changePassword(userId, { currentPassword, newPassword }) {
     throw new AppError(400, 'PASSWORD_REUSE', 'New password must differ from the current password');
   }
 
+  await assertPasswordNotCompromised(newPassword);
   const passwordHash = await bcrypt.hash(newPassword, env.BCRYPT_ROUNDS);
   await withTransaction(pool, async (client) => {
     await changeUserPassword(userId, passwordHash, client);
@@ -64,34 +67,46 @@ export async function changePassword(userId, { currentPassword, newPassword }) {
 }
 
 export async function requestPasswordReset(email) {
-  const record = await findUserAuthRecordByEmail(email);
-  if (!record) return { accepted: true, token: null, userId: null, deliveryFailed: false };
-
-  const token = await issueActionToken({
-    userId: record.id,
-    purpose: PASSWORD_RESET_PURPOSE,
-    expiresAt: expiryFromNow(env.PASSWORD_RESET_TTL_MINUTES, 60_000),
-  });
+  const startedAt = Date.now();
+  let result = { accepted: true, token: null, userId: null, deliveryFailed: false };
 
   try {
-    const delivery = await deliverAccountAction({
-      email: record.email,
-      purpose: PASSWORD_RESET_PURPOSE,
-      token,
-    });
-    return {
-      accepted: true,
-      token: delivery.testToken ?? null,
-      userId: record.id,
-      deliveryFailed: false,
-    };
-  } catch (error) {
-    logger.error({ error, userId: record.id }, 'Password reset delivery failed');
-    return { accepted: true, token: null, userId: record.id, deliveryFailed: true };
+    const record = await findUserAuthRecordByEmail(email);
+    if (record) {
+      const token = await issueActionToken({
+        userId: record.id,
+        purpose: PASSWORD_RESET_PURPOSE,
+        expiresAt: expiryFromNow(env.PASSWORD_RESET_TTL_MINUTES, 60_000),
+      });
+
+      try {
+        const delivery = await deliverAccountAction({
+          email: record.email,
+          purpose: PASSWORD_RESET_PURPOSE,
+          token,
+        });
+        result = {
+          accepted: true,
+          token: delivery.testToken ?? null,
+          userId: record.id,
+          deliveryFailed: false,
+        };
+      } catch (error) {
+        await revokeActiveAccountActionTokens(record.id, PASSWORD_RESET_PURPOSE).catch(() => {});
+        logger.error({ error, userId: record.id }, 'Password reset delivery failed');
+        result = { accepted: true, token: null, userId: record.id, deliveryFailed: true };
+      }
+    }
+  } finally {
+    const remaining = env.PASSWORD_RESET_MIN_RESPONSE_MS - (Date.now() - startedAt);
+    if (remaining > 0) await sleep(remaining);
   }
+
+  return result;
 }
 
 export async function resetPassword({ token, newPassword }) {
+  await assertPasswordNotCompromised(newPassword);
   const tokenHash = sha256(token);
 
   const outcome = await withTransaction(pool, async (client) => {
@@ -134,12 +149,17 @@ export async function requestEmailVerification(userId) {
     purpose: EMAIL_VERIFY_PURPOSE,
     expiresAt: expiryFromNow(env.EMAIL_VERIFY_TTL_HOURS, 3_600_000),
   });
-  const delivery = await deliverAccountAction({
-    email: record.email,
-    purpose: EMAIL_VERIFY_PURPOSE,
-    token,
-  });
-  return { accepted: true, token: delivery.testToken ?? null, alreadyVerified: false };
+  try {
+    const delivery = await deliverAccountAction({
+      email: record.email,
+      purpose: EMAIL_VERIFY_PURPOSE,
+      token,
+    });
+    return { accepted: true, token: delivery.testToken ?? null, alreadyVerified: false };
+  } catch (error) {
+    await revokeActiveAccountActionTokens(userId, EMAIL_VERIFY_PURPOSE).catch(() => {});
+    throw error;
+  }
 }
 
 export async function verifyEmail(token) {

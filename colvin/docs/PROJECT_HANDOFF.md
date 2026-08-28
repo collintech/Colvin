@@ -95,3 +95,7 @@ Commit both generated lockfiles after they are produced.
 - Added configurable PostgreSQL pool limits/timeouts.
 - Added real PostgreSQL/Redis integration test runner (`npm run test:integration`).
 - Added Go history repository integration tests using the migrated local PostgreSQL database.
+
+## Gate 5D authentication hardening
+
+Gate 5D adds short refresh-rotation race tolerance, production HIBP Pwned Passwords screening, password-reset response padding, bounded account-email retry/token revocation, and 5xx detail suppression. MFA remains an explicit pre-admin-console requirement rather than a partially implemented flag.

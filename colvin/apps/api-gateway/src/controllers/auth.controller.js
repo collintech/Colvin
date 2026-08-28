@@ -12,6 +12,8 @@ function cookieMaxAgeSeconds(refreshToken) {
 }
 
 function sendAuthenticated(res, status, result) {
+  res.set('Cache-Control', 'no-store');
+  res.set('Pragma', 'no-cache');
   setRefreshCookie(res, result.refreshToken, cookieMaxAgeSeconds(result.refreshToken));
   return res.status(status).json({
     success: true,
@@ -92,12 +94,15 @@ export async function refresh(req, res) {
     });
     return sendAuthenticated(res, 200, result);
   } catch (error) {
-    clearRefreshCookie(res);
+    if (error.code !== 'REFRESH_ALREADY_ROTATED') clearRefreshCookie(res);
     await recordAuthAudit({
       req,
       eventType: 'auth.refresh',
       outcome: 'failure',
-      metadata: { code: error.code ?? 'UNKNOWN' },
+      metadata: {
+        code: error.code ?? 'UNKNOWN',
+        ...(error.code === 'REFRESH_ALREADY_ROTATED' ? { recoverableRace: true } : {}),
+      },
     });
     throw error;
   }

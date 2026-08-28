@@ -1,14 +1,14 @@
-Colvin v0.10.1 -> v0.11 — Gate 5C Account Lifecycle
+Colvin v0.12 -> v0.12.1 unit-test environment fix
 
-1. Commit/back up the current green v0.10.1 repository.
-2. Extract this archive over the existing colvin repository root.
-3. Do not replace your local .env, package-lock.json, or Go go.sum files.
-4. Run: npm run format
-5. Run: npm run quality
-6. Run: npm run db:migrate
-7. Run db:migrate a second time to verify 005 is skipped.
-8. Run: npm run test:integration
+Apply this archive over the existing Colvin repository root.
 
-Migration 005 intentionally revokes pre-Gate-5C refresh sessions because new access and refresh JWTs carry users.auth_version. A one-time re-login after deployment is expected.
+Changed files:
+- apps/api-gateway/test/helpers/runtime-env.js (new)
+- apps/api-gateway/test/error-envelope-security.test.js
+- apps/api-gateway/test/password-security.test.js
 
-Production email delivery requires EMAIL_PROVIDER=resend, RESEND_API_KEY, EMAIL_FROM, and ACCOUNT_WEB_URL. Integration tests override EMAIL_PROVIDER=test and never send real email.
+No database migration or dependency installation is required.
+Run:
+  npm run format
+  npm run quality
+  npm run test:integration

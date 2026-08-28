@@ -11,6 +11,43 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+const refreshClient = axios.create({
+  baseURL,
+  timeout: 10000,
+  withCredentials: true,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+function wait(milliseconds) {
+  return new Promise((resolve) => globalThis.setTimeout(resolve, milliseconds));
+}
+
+function isRefreshRace(error) {
+  return (
+    error.response?.status === 409 &&
+    error.response?.data?.error?.code === 'REFRESH_ALREADY_ROTATED'
+  );
+}
+
+export async function refreshSession() {
+  let attempt = 0;
+
+  while (attempt < 2) {
+    try {
+      const response = await refreshClient.post('/auth/refresh');
+      const value = response.data.data;
+      setSession(value);
+      return value;
+    } catch (error) {
+      attempt += 1;
+      if (!isRefreshRace(error) || attempt >= 2) throw error;
+      await wait(125);
+    }
+  }
+
+  throw new Error('Refresh retry exhausted');
+}
+
 api.interceptors.request.use((config) => {
   const token = getSession()?.accessToken;
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -33,12 +70,8 @@ api.interceptors.response.use(
     }
 
     original._retry = true;
-    refreshPromise ??= axios
-      .post(`${baseURL}/auth/refresh`, undefined, { withCredentials: true })
-      .then((response) => {
-        setSession(response.data.data);
-        return response.data.data.accessToken;
-      })
+    refreshPromise ??= refreshSession()
+      .then((value) => value.accessToken)
       .finally(() => {
         refreshPromise = null;
       });

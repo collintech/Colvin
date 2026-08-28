@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { setTimeout as sleep } from 'node:timers/promises';
 import test from 'node:test';
 
 import pg from 'pg';
@@ -66,6 +67,8 @@ test('browser auth keeps refresh token HttpOnly and rotates/revokes token famili
     assert.ok(secondCookie);
     assert.notEqual(secondCookie, firstCookie);
 
+    await sleep((Number(process.env.REFRESH_REUSE_GRACE_SECONDS) + 0.2) * 1000);
+
     const reuse = await request(app)
       .post('/api/v1/auth/refresh')
       .set('Origin', origin)
@@ -114,6 +117,58 @@ test('cross-origin browser auth request is rejected before account creation', as
     .expect(403);
 
   assert.equal(response.body.error.code, 'UNTRUSTED_ORIGIN');
+});
+
+test('near-simultaneous refresh reuse is recoverable without revoking the replacement session', async () => {
+  const email = `refresh-race-${randomUUID()}@example.test`;
+  let userId;
+
+  try {
+    const registration = await request(app)
+      .post('/api/v1/auth/register')
+      .set('Origin', origin)
+      .send({ email, password: 'ColvinSecure12345' })
+      .expect(201);
+
+    userId = registration.body.data.user.id;
+    const firstCookie = cookiePair(registration);
+
+    const [a, b] = await Promise.all([
+      request(app).post('/api/v1/auth/refresh').set('Origin', origin).set('Cookie', firstCookie),
+      request(app).post('/api/v1/auth/refresh').set('Origin', origin).set('Cookie', firstCookie),
+    ]);
+
+    const statuses = [a.status, b.status].sort((left, right) => left - right);
+    assert.deepEqual(statuses, [200, 409]);
+
+    const winner = a.status === 200 ? a : b;
+    const race = a.status === 409 ? a : b;
+    assert.equal(race.body.error.code, 'REFRESH_ALREADY_ROTATED');
+
+    const replacementCookie = cookiePair(winner);
+    assert.ok(replacementCookie);
+
+    await request(app)
+      .post('/api/v1/auth/refresh')
+      .set('Origin', origin)
+      .set('Cookie', replacementCookie)
+      .expect(200);
+  } finally {
+    if (userId) {
+      await pool.query('DELETE FROM auth_audit_events WHERE user_id = $1', [userId]);
+      await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    }
+  }
+});
+
+test('obviously compromised passwords are rejected before account creation', async () => {
+  const response = await request(app)
+    .post('/api/v1/auth/register')
+    .set('Origin', origin)
+    .send({ email: `compromised-${randomUUID()}@example.test`, password: 'password12345' })
+    .expect(400);
+
+  assert.equal(response.body.error.code, 'COMPROMISED_PASSWORD');
 });
 
 test('password change invalidates old access and refresh sessions', async () => {
@@ -189,11 +244,13 @@ test('password reset is single-use and revokes existing sessions without leaking
     const oldAccess = registration.body.data.accessToken;
     const oldCookie = cookiePair(registration);
 
+    const unknownStartedAt = Date.now();
     const unknown = await request(app)
       .post('/api/v1/auth/password/reset/request')
       .set('Origin', origin)
       .send({ email: `unknown-${randomUUID()}@example.test` })
       .expect(202);
+    assert.ok(Date.now() - unknownStartedAt >= 80);
     assert.equal(unknown.body.data.accepted, true);
     assert.equal(unknown.body.data.testToken, undefined);
 

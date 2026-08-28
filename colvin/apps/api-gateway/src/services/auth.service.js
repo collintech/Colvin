@@ -18,6 +18,7 @@ import {
   saveRefreshToken,
 } from '../repositories/user.repository.js';
 import { sha256 } from '../utils/hash.js';
+import { assertPasswordNotCompromised } from './password-security.service.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/tokens.js';
 
 const DUMMY_PASSWORD_HASH = '$2b$12$6mYJm7v5F6XgS6Rj1f4FkeSx7QqL0XWQ1fd2xXfFB0uRHWJKlC2sK';
@@ -71,6 +72,7 @@ export async function register(input) {
     throw new AppError(409, 'EMAIL_IN_USE', 'An account already exists for this email');
   }
 
+  await assertPasswordNotCompromised(input.password);
   const passwordHash = await bcrypt.hash(input.password, env.BCRYPT_ROUNDS);
   const user = await createUser({ email: input.email, passwordHash });
   return { user, ...(await issueInitialTokens(user)) };
@@ -109,6 +111,14 @@ export async function refresh(refreshToken) {
     if (!stored) return { error: 'INVALID_REFRESH_TOKEN' };
 
     if (stored.revoked_at) {
+      const revokedAgeMs = Date.now() - new Date(stored.revoked_at).getTime();
+      const withinRaceGrace =
+        stored.replaced_by_hash &&
+        revokedAgeMs >= 0 &&
+        revokedAgeMs <= env.REFRESH_REUSE_GRACE_SECONDS * 1000;
+
+      if (withinRaceGrace) return { error: 'REFRESH_ALREADY_ROTATED' };
+
       await revokeRefreshFamily(stored.family_id, client);
       return { error: 'REFRESH_TOKEN_REUSED' };
     }
@@ -139,6 +149,9 @@ export async function refresh(refreshToken) {
     return { user, ...tokens };
   });
 
+  if (outcome.error === 'REFRESH_ALREADY_ROTATED') {
+    throw new AppError(409, 'REFRESH_ALREADY_ROTATED', 'Refresh session was already rotated');
+  }
   if (outcome.error === 'REFRESH_TOKEN_REUSED') {
     throw new AppError(401, 'REFRESH_TOKEN_REUSED', 'Session is no longer valid');
   }
