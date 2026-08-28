@@ -115,3 +115,184 @@ test('cross-origin browser auth request is rejected before account creation', as
 
   assert.equal(response.body.error.code, 'UNTRUSTED_ORIGIN');
 });
+
+test('password change invalidates old access and refresh sessions', async () => {
+  const email = `password-change-${randomUUID()}@example.test`;
+  const oldPassword = 'ColvinSecure12345';
+  const newPassword = 'ColvinSecure67890';
+  let userId;
+
+  try {
+    const registration = await request(app)
+      .post('/api/v1/auth/register')
+      .set('Origin', origin)
+      .send({ email, password: oldPassword })
+      .expect(201);
+
+    userId = registration.body.data.user.id;
+    const oldAccess = registration.body.data.accessToken;
+    const oldCookie = cookiePair(registration);
+
+    await request(app)
+      .post('/api/v1/auth/password/change')
+      .set('Origin', origin)
+      .set('Authorization', `Bearer ${oldAccess}`)
+      .send({ currentPassword: oldPassword, newPassword })
+      .expect(204);
+
+    await request(app)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${oldAccess}`)
+      .expect(401);
+
+    await request(app)
+      .post('/api/v1/auth/refresh')
+      .set('Origin', origin)
+      .set('Cookie', oldCookie)
+      .expect(401);
+
+    await request(app)
+      .post('/api/v1/auth/login')
+      .set('Origin', origin)
+      .send({ email, password: oldPassword })
+      .expect(401);
+
+    const freshLogin = await request(app)
+      .post('/api/v1/auth/login')
+      .set('Origin', origin)
+      .send({ email, password: newPassword })
+      .expect(200);
+
+    assert.ok(freshLogin.body.data.accessToken);
+  } finally {
+    if (userId) {
+      await pool.query('DELETE FROM auth_audit_events WHERE user_id = $1', [userId]);
+      await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    }
+  }
+});
+
+test('password reset is single-use and revokes existing sessions without leaking unknown accounts', async () => {
+  const email = `password-reset-${randomUUID()}@example.test`;
+  const oldPassword = 'ColvinSecure12345';
+  const newPassword = 'ColvinReset67890';
+  let userId;
+
+  try {
+    const registration = await request(app)
+      .post('/api/v1/auth/register')
+      .set('Origin', origin)
+      .send({ email, password: oldPassword })
+      .expect(201);
+
+    userId = registration.body.data.user.id;
+    const oldAccess = registration.body.data.accessToken;
+    const oldCookie = cookiePair(registration);
+
+    const unknown = await request(app)
+      .post('/api/v1/auth/password/reset/request')
+      .set('Origin', origin)
+      .send({ email: `unknown-${randomUUID()}@example.test` })
+      .expect(202);
+    assert.equal(unknown.body.data.accepted, true);
+    assert.equal(unknown.body.data.testToken, undefined);
+
+    const resetRequest = await request(app)
+      .post('/api/v1/auth/password/reset/request')
+      .set('Origin', origin)
+      .send({ email })
+      .expect(202);
+
+    const resetToken = resetRequest.body.data.testToken;
+    assert.ok(resetToken);
+
+    await request(app)
+      .post('/api/v1/auth/password/reset/confirm')
+      .set('Origin', origin)
+      .send({ token: resetToken, newPassword })
+      .expect(204);
+
+    await request(app)
+      .post('/api/v1/auth/password/reset/confirm')
+      .set('Origin', origin)
+      .send({ token: resetToken, newPassword: 'AnotherSecure12345' })
+      .expect(400);
+
+    await request(app)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${oldAccess}`)
+      .expect(401);
+
+    await request(app)
+      .post('/api/v1/auth/refresh')
+      .set('Origin', origin)
+      .set('Cookie', oldCookie)
+      .expect(401);
+
+    await request(app)
+      .post('/api/v1/auth/login')
+      .set('Origin', origin)
+      .send({ email, password: oldPassword })
+      .expect(401);
+
+    await request(app)
+      .post('/api/v1/auth/login')
+      .set('Origin', origin)
+      .send({ email, password: newPassword })
+      .expect(200);
+  } finally {
+    if (userId) {
+      await pool.query('DELETE FROM auth_audit_events WHERE user_id = $1', [userId]);
+      await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    }
+  }
+});
+
+test('email verification token is single-use and marks the account verified', async () => {
+  const email = `verify-${randomUUID()}@example.test`;
+  let userId;
+
+  try {
+    const registration = await request(app)
+      .post('/api/v1/auth/register')
+      .set('Origin', origin)
+      .send({ email, password: 'ColvinSecure12345' })
+      .expect(201);
+
+    userId = registration.body.data.user.id;
+    const accessToken = registration.body.data.accessToken;
+
+    const verificationRequest = await request(app)
+      .post('/api/v1/auth/email/verification/request')
+      .set('Origin', origin)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(202);
+
+    const verificationToken = verificationRequest.body.data.testToken;
+    assert.ok(verificationToken);
+
+    await request(app)
+      .post('/api/v1/auth/email/verification/confirm')
+      .set('Origin', origin)
+      .send({ token: verificationToken })
+      .expect(204);
+
+    await request(app)
+      .post('/api/v1/auth/email/verification/confirm')
+      .set('Origin', origin)
+      .send({ token: verificationToken })
+      .expect(400);
+
+    const me = await request(app)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    assert.ok(me.body.data.user.email_verified_at);
+  } finally {
+    if (userId) {
+      await pool.query('DELETE FROM auth_audit_events WHERE user_id = $1', [userId]);
+      await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    }
+  }
+});

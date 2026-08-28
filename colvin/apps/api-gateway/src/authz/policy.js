@@ -1,5 +1,7 @@
 export const PERMISSIONS = Object.freeze({
   ACCOUNT_READ_SELF: 'account:self:read',
+  ACCOUNT_CREDENTIALS_MANAGE_SELF: 'account:self:credentials',
+  ACCOUNT_EMAIL_VERIFY_SELF: 'account:self:email-verify',
   SESSION_REVOKE_SELF: 'session:self:revoke',
   VEHICLE_LOOKUP: 'vehicle:lookup',
   HISTORY_READ: 'history:read',
@@ -9,6 +11,8 @@ export const PERMISSIONS = Object.freeze({
 
 const USER_PERMISSIONS = Object.freeze([
   PERMISSIONS.ACCOUNT_READ_SELF,
+  PERMISSIONS.ACCOUNT_CREDENTIALS_MANAGE_SELF,
+  PERMISSIONS.ACCOUNT_EMAIL_VERIFY_SELF,
   PERMISSIONS.SESSION_REVOKE_SELF,
   PERMISSIONS.VEHICLE_LOOKUP,
   PERMISSIONS.HISTORY_READ,

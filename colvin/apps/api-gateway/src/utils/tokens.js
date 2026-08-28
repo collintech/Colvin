@@ -8,7 +8,7 @@ const ISSUER = 'colvin-api';
 const WEB_AUDIENCE = 'colvin-web';
 
 export const signAccessToken = (user) =>
-  jwt.sign({ sub: user.id, role: user.role }, env.JWT_ACCESS_SECRET, {
+  jwt.sign({ sub: user.id, role: user.role, av: user.auth_version }, env.JWT_ACCESS_SECRET, {
     expiresIn: env.JWT_ACCESS_TTL,
     issuer: ISSUER,
     audience: WEB_AUDIENCE,
@@ -16,7 +16,7 @@ export const signAccessToken = (user) =>
   });
 
 export const signRefreshToken = (user) =>
-  jwt.sign({ sub: user.id, type: 'refresh' }, env.JWT_REFRESH_SECRET, {
+  jwt.sign({ sub: user.id, type: 'refresh', av: user.auth_version }, env.JWT_REFRESH_SECRET, {
     expiresIn: env.JWT_REFRESH_TTL,
     issuer: ISSUER,
     audience: WEB_AUDIENCE,

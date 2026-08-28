@@ -20,3 +20,5 @@ function createLimiter({ windowMs, limit }) {
 export const loginLimiter = createLimiter({ windowMs: 15 * 60 * 1000, limit: 10 });
 export const registerLimiter = createLimiter({ windowMs: 60 * 60 * 1000, limit: 10 });
 export const refreshLimiter = createLimiter({ windowMs: 5 * 60 * 1000, limit: 60 });
+
+export const accountActionLimiter = createLimiter({ windowMs: 60 * 60 * 1000, limit: 10 });

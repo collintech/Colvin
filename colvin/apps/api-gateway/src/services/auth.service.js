@@ -39,6 +39,8 @@ function publicUser(record) {
     id: record.id,
     email: record.email,
     role: record.role,
+    email_verified_at: record.email_verified_at ?? null,
+    auth_version: record.auth_version,
     created_at: record.created_at,
   };
 }
@@ -117,7 +119,7 @@ export async function refresh(refreshToken) {
     }
 
     const user = await findUserById(payload.sub, client);
-    if (!user) {
+    if (!user || Number(payload.av) !== Number(user.auth_version)) {
       await revokeRefreshFamily(stored.family_id, client);
       return { error: 'INVALID_REFRESH_TOKEN' };
     }

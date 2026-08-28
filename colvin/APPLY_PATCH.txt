@@ -1,18 +1,14 @@
-Colvin v0.10 -> v0.10.1 integration teardown fix
+Colvin v0.10.1 -> v0.11 — Gate 5C Account Lifecycle
 
-Apply this patch over the root of your existing Colvin repository.
+1. Commit/back up the current green v0.10.1 repository.
+2. Extract this archive over the existing colvin repository root.
+3. Do not replace your local .env, package-lock.json, or Go go.sum files.
+4. Run: npm run format
+5. Run: npm run quality
+6. Run: npm run db:migrate
+7. Run db:migrate a second time to verify 005 is skipped.
+8. Run: npm run test:integration
 
-Changed:
-- apps/api-gateway/test-integration/auth.integration.test.js
+Migration 005 intentionally revokes pre-Gate-5C refresh sessions because new access and refresh JWTs carry users.auth_version. A one-time re-login after deployment is expected.
 
-Purpose:
-- close the auth integration verification pool
-- close the API Gateway PostgreSQL pool
-- close the API Gateway Redis client
-
-This prevents the Node integration-test process from hanging after auth tests complete.
-
-After applying:
-  npm run format
-  npm run quality
-  npm run test:integration
+Production email delivery requires EMAIL_PROVIDER=resend, RESEND_API_KEY, EMAIL_FROM, and ACCOUNT_WEB_URL. Integration tests override EMAIL_PROVIDER=test and never send real email.

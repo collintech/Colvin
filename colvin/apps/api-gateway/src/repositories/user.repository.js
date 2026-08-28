@@ -9,7 +9,7 @@ export async function findUserByEmail(email, executor) {
     (
       await run(
         executor,
-        'SELECT id, email, password_hash, role, created_at FROM users WHERE email = $1',
+        'SELECT id, email, password_hash, role, email_verified_at, password_changed_at, auth_version, created_at FROM users WHERE email = $1',
         [email],
       )
     ).rows[0] ?? null
@@ -18,8 +18,13 @@ export async function findUserByEmail(email, executor) {
 
 export async function findUserById(id, executor) {
   return (
-    (await run(executor, 'SELECT id, email, role, created_at FROM users WHERE id = $1', [id]))
-      .rows[0] ?? null
+    (
+      await run(
+        executor,
+        'SELECT id, email, role, email_verified_at, password_changed_at, auth_version, created_at FROM users WHERE id = $1',
+        [id],
+      )
+    ).rows[0] ?? null
   );
 }
 
@@ -27,7 +32,7 @@ export async function createUser({ email, passwordHash }, executor) {
   return (
     await run(
       executor,
-      'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, role, created_at',
+      'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, role, email_verified_at, password_changed_at, auth_version, created_at',
       [email, passwordHash],
     )
   ).rows[0];
@@ -97,5 +102,61 @@ export async function revokeAllUserRefreshTokens(userId, executor) {
      SET revoked_at = COALESCE(revoked_at, now())
      WHERE user_id = $1`,
     [userId],
+  );
+}
+
+export async function findUserAuthRecordByEmail(email, executor) {
+  return (
+    (
+      await run(
+        executor,
+        `SELECT id, email, password_hash, role, email_verified_at, password_changed_at, auth_version, created_at
+       FROM users WHERE email = $1`,
+        [email],
+      )
+    ).rows[0] ?? null
+  );
+}
+
+export async function findUserAuthRecordById(id, executor) {
+  return (
+    (
+      await run(
+        executor,
+        `SELECT id, email, password_hash, role, email_verified_at, password_changed_at, auth_version, created_at
+       FROM users WHERE id = $1`,
+        [id],
+      )
+    ).rows[0] ?? null
+  );
+}
+
+export async function changeUserPassword(userId, passwordHash, executor) {
+  return (
+    (
+      await run(
+        executor,
+        `UPDATE users
+       SET password_hash = $2, password_changed_at = now(), auth_version = auth_version + 1, updated_at = now()
+       WHERE id = $1
+       RETURNING id, email, role, email_verified_at, password_changed_at, auth_version, created_at`,
+        [userId, passwordHash],
+      )
+    ).rows[0] ?? null
+  );
+}
+
+export async function markUserEmailVerified(userId, executor) {
+  return (
+    (
+      await run(
+        executor,
+        `UPDATE users
+       SET email_verified_at = COALESCE(email_verified_at, now()), updated_at = now()
+       WHERE id = $1
+       RETURNING id, email, role, email_verified_at, password_changed_at, auth_version, created_at`,
+        [userId],
+      )
+    ).rows[0] ?? null
   );
 }

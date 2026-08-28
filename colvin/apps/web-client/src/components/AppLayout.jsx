@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom';
 
 import { useAuth } from '../features/auth/useAuth.js';
 
@@ -8,9 +8,12 @@ export default function AppLayout() {
   return (
     <>
       <header>
-        <strong>Colvin</strong>
+        <strong>
+          <Link to="/">Colvin</Link>
+        </strong>
         <div>
           <span>{user?.email}</span>
+          <Link to="/account">Account</Link>
           <button className="secondary" onClick={logout}>
             Sign out
           </button>

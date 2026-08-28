@@ -16,6 +16,12 @@ const schema = z.object({
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('7d'),
   BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
+  PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().min(5).max(120).default(30),
+  EMAIL_VERIFY_TTL_HOURS: z.coerce.number().int().min(1).max(72).default(24),
+  EMAIL_PROVIDER: z.enum(['test', 'resend']).default('test'),
+  RESEND_API_KEY: z.string().min(10).optional(),
+  EMAIL_FROM: z.string().min(3).max(320).optional(),
+  ACCOUNT_WEB_URL: z.string().url().optional(),
   AUTH_LOGIN_ACCOUNT_LIMIT: z.coerce.number().int().min(1).max(100).default(10),
   AUTH_LOGIN_IP_LIMIT: z.coerce.number().int().min(1).max(500).default(30),
   AUTH_LOGIN_WINDOW_SECONDS: z.coerce.number().int().min(60).max(86400).default(900),
@@ -23,6 +29,9 @@ const schema = z.object({
   AUTH_REGISTER_WINDOW_SECONDS: z.coerce.number().int().min(60).max(86400).default(3600),
   AUTH_REFRESH_IP_LIMIT: z.coerce.number().int().min(1).max(1000).default(120),
   AUTH_REFRESH_WINDOW_SECONDS: z.coerce.number().int().min(60).max(3600).default(300),
+  AUTH_ACCOUNT_ACTION_ACCOUNT_LIMIT: z.coerce.number().int().min(1).max(100).default(5),
+  AUTH_ACCOUNT_ACTION_IP_LIMIT: z.coerce.number().int().min(1).max(500).default(20),
+  AUTH_ACCOUNT_ACTION_WINDOW_SECONDS: z.coerce.number().int().min(60).max(86400).default(3600),
   AUTH_LIMIT_NAMESPACE: z
     .string()
     .regex(/^[a-zA-Z0-9_-]{1,64}$/)
@@ -38,4 +47,16 @@ if (!parsed.success) {
   console.error('Invalid environment configuration', parsed.error.flatten().fieldErrors);
   process.exit(1);
 }
-export const env = parsed.data;
+const data = parsed.data;
+if (data.NODE_ENV === 'production') {
+  const deliveryErrors = {};
+  if (data.EMAIL_PROVIDER !== 'resend')
+    deliveryErrors.EMAIL_PROVIDER = ['Must be resend in production'];
+  if (!data.RESEND_API_KEY) deliveryErrors.RESEND_API_KEY = ['Required in production'];
+  if (!data.EMAIL_FROM) deliveryErrors.EMAIL_FROM = ['Required in production'];
+  if (Object.keys(deliveryErrors).length > 0) {
+    console.error('Invalid production email configuration', deliveryErrors);
+    process.exit(1);
+  }
+}
+export const env = { ...data, ACCOUNT_WEB_URL: data.ACCOUNT_WEB_URL ?? data.WEB_ORIGIN };

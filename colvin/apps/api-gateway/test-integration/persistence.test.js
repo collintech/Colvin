@@ -28,7 +28,8 @@ test('database migrations and core tables are present', async () => {
            to_regclass('public.vehicles') AS vehicles,
            to_regclass('public.vehicle_history_records') AS history,
            to_regclass('public.schema_migrations') AS migrations,
-           to_regclass('public.auth_audit_events') AS auth_audit
+           to_regclass('public.auth_audit_events') AS auth_audit,
+           to_regclass('public.account_action_tokens') AS account_action_tokens
   `);
 
   assert.equal(tables.rows[0].users, 'users');
@@ -36,6 +37,7 @@ test('database migrations and core tables are present', async () => {
   assert.equal(tables.rows[0].history, 'vehicle_history_records');
   assert.equal(tables.rows[0].migrations, 'schema_migrations');
   assert.equal(tables.rows[0].auth_audit, 'auth_audit_events');
+  assert.equal(tables.rows[0].account_action_tokens, 'account_action_tokens');
 
   const migrations = await pool.query('SELECT filename FROM schema_migrations ORDER BY filename');
   assert.deepEqual(
@@ -45,6 +47,7 @@ test('database migrations and core tables are present', async () => {
       '002_operational_indexes.sql',
       '003_auth_session_hardening.sql',
       '004_auth_abuse_audit.sql',
+      '005_account_lifecycle.sql',
     ],
   );
 
@@ -57,6 +60,17 @@ test('database migrations and core tables are present', async () => {
   assert.deepEqual(
     refreshColumns.rows.map((row) => row.column_name),
     ['family_id', 'replaced_by_hash'],
+  );
+
+  const accountColumns = await pool.query(`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'users'
+      AND column_name IN ('auth_version', 'email_verified_at', 'password_changed_at')
+    ORDER BY column_name
+  `);
+  assert.deepEqual(
+    accountColumns.rows.map((row) => row.column_name),
+    ['auth_version', 'email_verified_at', 'password_changed_at'],
   );
 });
 

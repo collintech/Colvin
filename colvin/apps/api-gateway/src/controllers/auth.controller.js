@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer';
 
 import * as authService from '../services/auth.service.js';
+import * as accountLifecycle from '../services/account-lifecycle.service.js';
 import { recordAuthAudit } from '../services/auth-audit.service.js';
 import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from '../utils/auth-cookie.js';
 
@@ -123,4 +124,109 @@ export async function logoutAll(req, res) {
 
 export async function me(req, res) {
   return res.json({ success: true, data: { user: await authService.getCurrentUser(req.user.id) } });
+}
+
+export async function changePassword(req, res) {
+  try {
+    await accountLifecycle.changePassword(req.user.id, req.body);
+    await recordAuthAudit({
+      req,
+      eventType: 'auth.password.change',
+      outcome: 'success',
+      userId: req.user.id,
+    });
+    clearRefreshCookie(res);
+    return res.status(204).send();
+  } catch (error) {
+    await recordAuthAudit({
+      req,
+      eventType: 'auth.password.change',
+      outcome: 'failure',
+      userId: req.user.id,
+      metadata: { code: error.code ?? 'UNKNOWN' },
+    });
+    throw error;
+  }
+}
+
+export async function requestPasswordReset(req, res) {
+  const result = await accountLifecycle.requestPasswordReset(req.body.email);
+  await recordAuthAudit({
+    req,
+    eventType: 'auth.password_reset.request',
+    outcome: result.deliveryFailed ? 'failure' : 'success',
+    userId: result.userId,
+    subject: req.body.email,
+    metadata: result.deliveryFailed ? { code: 'EMAIL_DELIVERY_FAILED' } : undefined,
+  });
+  const data = { accepted: true };
+  if (result.token) data.testToken = result.token;
+  return res.status(202).json({ success: true, data });
+}
+
+export async function resetPassword(req, res) {
+  try {
+    const result = await accountLifecycle.resetPassword(req.body);
+    await recordAuthAudit({
+      req,
+      eventType: 'auth.password_reset.complete',
+      outcome: 'success',
+      userId: result.userId,
+    });
+    clearRefreshCookie(res);
+    return res.status(204).send();
+  } catch (error) {
+    await recordAuthAudit({
+      req,
+      eventType: 'auth.password_reset.complete',
+      outcome: 'failure',
+      metadata: { code: error.code ?? 'UNKNOWN' },
+    });
+    throw error;
+  }
+}
+
+export async function requestEmailVerification(req, res) {
+  try {
+    const result = await accountLifecycle.requestEmailVerification(req.user.id);
+    await recordAuthAudit({
+      req,
+      eventType: 'auth.email_verification.request',
+      outcome: 'success',
+      userId: req.user.id,
+    });
+    const data = { accepted: true, alreadyVerified: result.alreadyVerified };
+    if (result.token) data.testToken = result.token;
+    return res.status(202).json({ success: true, data });
+  } catch (error) {
+    await recordAuthAudit({
+      req,
+      eventType: 'auth.email_verification.request',
+      outcome: 'failure',
+      userId: req.user.id,
+      metadata: { code: error.code ?? 'UNKNOWN' },
+    });
+    throw error;
+  }
+}
+
+export async function verifyEmail(req, res) {
+  try {
+    const result = await accountLifecycle.verifyEmail(req.body.token);
+    await recordAuthAudit({
+      req,
+      eventType: 'auth.email_verification.complete',
+      outcome: 'success',
+      userId: result.userId,
+    });
+    return res.status(204).send();
+  } catch (error) {
+    await recordAuthAudit({
+      req,
+      eventType: 'auth.email_verification.complete',
+      outcome: 'failure',
+      metadata: { code: error.code ?? 'UNKNOWN' },
+    });
+    throw error;
+  }
 }

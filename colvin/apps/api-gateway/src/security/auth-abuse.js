@@ -67,6 +67,25 @@ function registerRules(req) {
   ];
 }
 
+function passwordResetRules(req) {
+  return [
+    {
+      action: 'password-reset',
+      dimension: 'account',
+      identity: req.body.email,
+      limit: env.AUTH_ACCOUNT_ACTION_ACCOUNT_LIMIT,
+      windowSeconds: env.AUTH_ACCOUNT_ACTION_WINDOW_SECONDS,
+    },
+    {
+      action: 'password-reset',
+      dimension: 'ip',
+      identity: requestIp(req),
+      limit: env.AUTH_ACCOUNT_ACTION_IP_LIMIT,
+      windowSeconds: env.AUTH_ACCOUNT_ACTION_WINDOW_SECONDS,
+    },
+  ];
+}
+
 function refreshRules(req) {
   return [
     {
@@ -120,3 +139,8 @@ function createGuard(rulesForRequest, eventType) {
 export const distributedLoginGuard = createGuard(loginRules, 'auth.login.rate_limited');
 export const distributedRegisterGuard = createGuard(registerRules, 'auth.register.rate_limited');
 export const distributedRefreshGuard = createGuard(refreshRules, 'auth.refresh.rate_limited');
+
+export const distributedPasswordResetGuard = createGuard(
+  passwordResetRules,
+  'auth.password_reset.rate_limited',
+);

@@ -26,6 +26,8 @@ export default function LoginPage() {
         <AuthForm label="Login" onSubmit={submit} serverError={error} />
         <p>
           New user? <Link to="/register">Create account</Link>
+          {' · '}
+          <Link to="/forgot-password">Forgot password?</Link>
         </p>
       </section>
     </main>
