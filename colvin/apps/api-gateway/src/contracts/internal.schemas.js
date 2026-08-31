@@ -2,6 +2,15 @@ import { z } from 'zod';
 
 const nullableString = z.string().nullable().optional();
 
+const vehicleSourceSchema = z
+  .object({
+    provider: z.string().min(1),
+    kind: z.string().min(1),
+    authoritative: z.boolean(),
+    fields: z.array(z.string()),
+  })
+  .strict();
+
 export const decodedVehicleSchema = z
   .object({
     vin: z.string().length(17),
@@ -14,6 +23,9 @@ export const decodedVehicleSchema = z
     engine: z.string().optional(),
     wmi: z.string().length(3),
     validCheckDigit: z.boolean(),
+    sources: z.array(vehicleSourceSchema),
+    warnings: z.array(z.string()).optional(),
+    attributes: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();
 

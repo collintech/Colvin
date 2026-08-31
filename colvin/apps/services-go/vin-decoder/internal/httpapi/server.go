@@ -1,15 +1,25 @@
 package httpapi
 
 import (
-	"colvin/vin-decoder/internal/vin"
+	"colvin/vin-decoder/internal/provider"
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
 )
 
-type Server struct{ apiKey string }
+type Server struct {
+	apiKey  string
+	decoder provider.Decoder
+}
 
-func New(apiKey string) *Server { return &Server{apiKey: apiKey} }
+func New(apiKey string, decoders ...provider.Decoder) *Server {
+	d := provider.Decoder(provider.LocalDecoder{})
+	if len(decoders) > 0 && decoders[0] != nil {
+		d = decoders[0]
+	}
+	return &Server{apiKey: apiKey, decoder: d}
+}
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, 200, map[string]string{"status": "ok"}) })
@@ -35,7 +45,7 @@ func (s *Server) decode(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 400, map[string]string{"error": "invalid JSON body"})
 		return
 	}
-	out, err := vin.Decode(in.VIN)
+	out, err := s.decoder.Decode(context.Background(), in.VIN)
 	if err != nil {
 		writeJSON(w, 400, map[string]string{"error": err.Error()})
 		return

@@ -1,14 +1,20 @@
-Colvin v0.12 -> v0.12.1 unit-test environment fix
+Colvin v0.13 Gate 6A — Vincario provider foundation
 
-Apply this archive over the existing Colvin repository root.
+Apply this patch over the verified v0.12.1 repository root.
+Do not overwrite your local .env, package-lock.json, or Go go.sum files.
 
-Changed files:
-- apps/api-gateway/test/helpers/runtime-env.js (new)
-- apps/api-gateway/test/error-envelope-security.test.js
-- apps/api-gateway/test/password-security.test.js
+Add to .env for local development:
+  VIN_PROVIDER_MODE=local
+  VIN_PROVIDER_TIMEOUT_MS=4000
+  VINCARIO_BASE_URL=https://api.vincario.com/3.2
+  VINCARIO_API_KEY=
+  VINCARIO_SECRET_KEY=
 
-No database migration or dependency installation is required.
+Keep local mode until Vincario credentials are available. Then use hybrid for provider testing.
+
 Run:
   npm run format
   npm run quality
+  npm run db:migrate
+  npm run db:migrate
   npm run test:integration

@@ -40,6 +40,11 @@ services:
     environment:
       PORT: 8081
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
+      VIN_PROVIDER_MODE: ${VIN_PROVIDER_MODE:-local}
+      VIN_PROVIDER_TIMEOUT_MS: ${VIN_PROVIDER_TIMEOUT_MS:-4000}
+      VINCARIO_BASE_URL: ${VINCARIO_BASE_URL:-https://api.vincario.com/3.2}
+      VINCARIO_API_KEY: ${VINCARIO_API_KEY:-}
+      VINCARIO_SECRET_KEY: ${VINCARIO_SECRET_KEY:-}
     expose: ['8081']
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://localhost:8081/health']

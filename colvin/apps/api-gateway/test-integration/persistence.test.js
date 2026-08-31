@@ -48,6 +48,7 @@ test('database migrations and core tables are present', async () => {
       '003_auth_session_hardening.sql',
       '004_auth_abuse_audit.sql',
       '005_account_lifecycle.sql',
+      '006_vehicle_provider_provenance.sql',
     ],
   );
 
@@ -71,6 +72,17 @@ test('database migrations and core tables are present', async () => {
   assert.deepEqual(
     accountColumns.rows.map((row) => row.column_name),
     ['auth_version', 'email_verified_at', 'password_changed_at'],
+  );
+
+  const providerColumns = await pool.query(`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'vehicles'
+      AND column_name IN ('provider_sources', 'provider_warnings', 'provider_attributes', 'provider_refreshed_at')
+    ORDER BY column_name
+  `);
+  assert.deepEqual(
+    providerColumns.rows.map((row) => row.column_name),
+    ['provider_attributes', 'provider_refreshed_at', 'provider_sources', 'provider_warnings'],
   );
 });
 

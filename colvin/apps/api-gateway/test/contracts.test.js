@@ -11,6 +11,10 @@ test('decoded vehicle contract accepts the current Go response', () => {
     country: 'United States',
     wmi: '1HG',
     validCheckDigit: true,
+    sources: [
+      { provider: 'vincario', kind: 'commercial-enriched', authoritative: false, fields: ['make'] },
+    ],
+    attributes: { drive: 'RWD' },
   });
 
   assert.equal(result.success, true);
@@ -21,6 +25,7 @@ test('decoded vehicle contract rejects undocumented fields', () => {
     vin: '1HGCM82633A004352',
     wmi: '1HG',
     validCheckDigit: true,
+    sources: [],
     unexpected: 'field',
   });
 

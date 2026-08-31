@@ -68,5 +68,9 @@ function mapVehicle(row) {
     bodyClass: row.body_class,
     engine: row.engine,
     decodedAt: row.decoded_at,
+    sources: row.provider_sources ?? [],
+    warnings: row.provider_warnings ?? [],
+    attributes: row.provider_attributes ?? {},
+    providerRefreshedAt: row.provider_refreshed_at,
   };
 }
