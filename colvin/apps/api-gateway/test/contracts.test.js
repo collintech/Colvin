@@ -35,7 +35,13 @@ test('decoded vehicle contract rejects undocumented fields', () => {
 test('history contract validates summary count shape', () => {
   const result = historyResponseSchema.safeParse({
     records: [],
-    summary: { totalRecords: 0 },
+    summary: {
+      totalRecords: 0,
+      counts: {},
+      theftStatus: 'unknown',
+      warnings: [],
+      providerChecks: [],
+    },
   });
 
   assert.equal(result.success, true);

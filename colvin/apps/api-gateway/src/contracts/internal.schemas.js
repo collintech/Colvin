@@ -35,11 +35,28 @@ export const historyRecordSchema = z
     recordType: z.string(),
     occurredAt: nullableString,
     country: nullableString,
+    jurisdiction: nullableString,
     summary: z.string(),
     details: z.record(z.string(), z.unknown()),
     sourceName: z.string(),
     sourceReference: nullableString,
-    confidence: z.number(),
+    confidence: z.number().min(0).max(1),
+    evidenceStatus: z.enum(['observed', 'reported', 'confirmed', 'cleared', 'unknown']),
+    providerEventId: nullableString,
+    observedAt: z.string().min(1),
+    providerCheckedAt: nullableString,
+  })
+  .strict();
+
+const providerCheckSchema = z
+  .object({
+    provider: z.string().min(1),
+    checkType: z.string().min(1),
+    status: z.enum(['clear', 'match', 'unknown', 'error']),
+    checkedAt: z.string().min(1),
+    validUntil: z.string().min(1),
+    warning: nullableString,
+    details: z.record(z.string(), z.unknown()),
   })
   .strict();
 
@@ -49,6 +66,10 @@ export const historyResponseSchema = z
     summary: z
       .object({
         totalRecords: z.number().int().nonnegative(),
+        counts: z.record(z.string(), z.number().int().nonnegative()),
+        theftStatus: z.enum(['unknown', 'reported', 'clear_in_checked_sources']),
+        warnings: z.array(z.string()),
+        providerChecks: z.array(providerCheckSchema),
       })
       .strict(),
   })

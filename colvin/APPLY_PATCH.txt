@@ -1,20 +1,15 @@
-Colvin v0.13 Gate 6A — Vincario provider foundation
+Colvin v0.13 -> v0.14 Gate 6B
 
-Apply this patch over the verified v0.12.1 repository root.
-Do not overwrite your local .env, package-lock.json, or Go go.sum files.
+1. Commit/back up the verified v0.13 Vincario checkpoint.
+2. Extract this archive over the existing Colvin repository root.
+3. Keep your local .env, package-lock.json, and Go go.sum files.
+4. Add the Gate 6B HISTORY_PROVIDER_* values from .env.example to your local .env.
+5. Keep HISTORY_PROVIDER_MODE=local until Vincario credentials and stolen-check entitlement are available.
+6. Run:
+   npm run format
+   npm run quality
+   npm run db:migrate
+   npm run db:migrate
+   npm run test:integration
 
-Add to .env for local development:
-  VIN_PROVIDER_MODE=local
-  VIN_PROVIDER_TIMEOUT_MS=4000
-  VINCARIO_BASE_URL=https://api.vincario.com/3.2
-  VINCARIO_API_KEY=
-  VINCARIO_SECRET_KEY=
-
-Keep local mode until Vincario credentials are available. Then use hybrid for provider testing.
-
-Run:
-  npm run format
-  npm run quality
-  npm run db:migrate
-  npm run db:migrate
-  npm run test:integration
+Migration 007 is additive and should apply once, then skip on the second migration run.

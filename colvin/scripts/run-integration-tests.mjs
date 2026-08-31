@@ -72,7 +72,7 @@ run(
 );
 
 console.log(
-  'Colvin persistence, auth, account-lifecycle, audit, and abuse-control integration tests passed.',
+  'Colvin persistence, auth, account-lifecycle, audit, abuse-control, and vehicle-history evidence integration tests passed.',
 );
 
 function run(command, args, cwd) {

@@ -13,17 +13,19 @@ import (
 
 var vinRE = regexp.MustCompile(`^[A-HJ-NPR-Z0-9]{17}$`)
 
-type historyRepository interface {
-	ByVIN(context.Context, string) ([]history.Record, error)
+type historyLookup interface {
+	Lookup(context.Context, string) (history.Report, error)
 	Ping(context.Context) error
 }
 
 type Server struct {
-	apiKey string
-	repo   historyRepository
+	apiKey  string
+	service historyLookup
 }
 
-func New(apiKey string, repo historyRepository) *Server { return &Server{apiKey: apiKey, repo: repo} }
+func New(apiKey string, service historyLookup) *Server {
+	return &Server{apiKey: apiKey, service: service}
+}
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
@@ -38,7 +40,7 @@ func (s *Server) Handler() http.Handler {
 func (s *Server) ready(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
-	if err := s.repo.Ping(ctx); err != nil {
+	if err := s.service.Ping(ctx); err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready"})
 		return
 	}
@@ -56,19 +58,19 @@ func (s *Server) internal(next http.Handler) http.Handler {
 }
 
 func (s *Server) get(w http.ResponseWriter, r *http.Request) {
-	vin := strings.ToUpper(strings.TrimSpace(r.PathValue("vin")))
-	if !vinRE.MatchString(vin) {
+	vinValue := strings.ToUpper(strings.TrimSpace(r.PathValue("vin")))
+	if !vinRE.MatchString(vinValue) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid VIN"})
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 6*time.Second)
 	defer cancel()
-	records, err := s.repo.ByVIN(ctx, vin)
+	report, err := s.service.Lookup(ctx, vinValue)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "history lookup failed"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"records": records, "summary": map[string]any{"totalRecords": len(records)}})
+	writeJSON(w, http.StatusOK, report)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

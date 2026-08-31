@@ -127,3 +127,63 @@ func TestRepositoryByVINReturnsErrorAfterPoolIsClosed(t *testing.T) {
 		t.Fatal("expected closed pool to return an error")
 	}
 }
+
+func TestRepositoryPersistsProviderChecksAndDeduplicatesEvidence(t *testing.T) {
+	databaseURL := os.Getenv("INTEGRATION_DATABASE_URL")
+	if databaseURL == "" {
+		t.Fatal("INTEGRATION_DATABASE_URL is required")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	db, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	vin := "WVWZZZ1JZXW000001"
+	_, _ = db.Exec(ctx, "DELETE FROM vehicles WHERE vin=$1", vin)
+	defer db.Exec(context.Background(), "DELETE FROM vehicles WHERE vin=$1", vin)
+	if _, err := db.Exec(ctx, `INSERT INTO vehicles(vin, make) VALUES($1,'Volkswagen')`, vin); err != nil {
+		t.Fatal(err)
+	}
+
+	repo := NewRepository(db)
+	checkedAt := time.Now().UTC().Truncate(time.Second)
+	evidence := []EvidenceInput{{
+		RecordType: "theft", Summary: "Reported stolen", Details: map[string]any{"providerStatus": "match"},
+		SourceName: "vincario-stolen", Confidence: 0.95, EvidenceStatus: "reported", Fingerprint: "fixture-fingerprint", CheckedAt: checkedAt,
+	}}
+	check := ProviderCheckInput{Provider: "vincario-stolen", CheckType: "theft", Status: "match", CheckedAt: checkedAt, ValidUntil: checkedAt.Add(24 * time.Hour), Details: map[string]any{"matchedRecords": 1}}
+	if err := repo.SaveProviderResult(ctx, vin, evidence, check); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SaveProviderResult(ctx, vin, evidence, check); err != nil {
+		t.Fatal(err)
+	}
+
+	records, err := repo.ByVIN(ctx, vin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("expected deduplicated evidence, got %d records", len(records))
+	}
+	if records[0].EvidenceStatus != "reported" || records[0].SourceName != "vincario-stolen" {
+		t.Fatalf("unexpected record %#v", records[0])
+	}
+	checks, err := repo.ProviderChecksByVIN(ctx, vin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(checks) != 1 || checks[0].Status != "match" {
+		t.Fatalf("unexpected checks %#v", checks)
+	}
+	fresh, err := repo.FreshProviderCheck(ctx, vin, "vincario-stolen", "theft", checkedAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fresh {
+		t.Fatal("expected provider check to be fresh")
+	}
+}

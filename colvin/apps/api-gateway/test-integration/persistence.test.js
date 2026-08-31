@@ -29,7 +29,8 @@ test('database migrations and core tables are present', async () => {
            to_regclass('public.vehicle_history_records') AS history,
            to_regclass('public.schema_migrations') AS migrations,
            to_regclass('public.auth_audit_events') AS auth_audit,
-           to_regclass('public.account_action_tokens') AS account_action_tokens
+           to_regclass('public.account_action_tokens') AS account_action_tokens,
+           to_regclass('public.history_provider_checks') AS history_provider_checks
   `);
 
   assert.equal(tables.rows[0].users, 'users');
@@ -38,6 +39,7 @@ test('database migrations and core tables are present', async () => {
   assert.equal(tables.rows[0].migrations, 'schema_migrations');
   assert.equal(tables.rows[0].auth_audit, 'auth_audit_events');
   assert.equal(tables.rows[0].account_action_tokens, 'account_action_tokens');
+  assert.equal(tables.rows[0].history_provider_checks, 'history_provider_checks');
 
   const migrations = await pool.query('SELECT filename FROM schema_migrations ORDER BY filename');
   assert.deepEqual(
@@ -49,6 +51,7 @@ test('database migrations and core tables are present', async () => {
       '004_auth_abuse_audit.sql',
       '005_account_lifecycle.sql',
       '006_vehicle_provider_provenance.sql',
+      '007_history_evidence_layer.sql',
     ],
   );
 
@@ -83,6 +86,24 @@ test('database migrations and core tables are present', async () => {
   assert.deepEqual(
     providerColumns.rows.map((row) => row.column_name),
     ['provider_attributes', 'provider_refreshed_at', 'provider_sources', 'provider_warnings'],
+  );
+
+  const historyEvidenceColumns = await pool.query(`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'vehicle_history_records'
+      AND column_name IN ('evidence_status', 'jurisdiction', 'provider_event_id', 'evidence_fingerprint', 'observed_at', 'provider_checked_at')
+    ORDER BY column_name
+  `);
+  assert.deepEqual(
+    historyEvidenceColumns.rows.map((row) => row.column_name),
+    [
+      'evidence_fingerprint',
+      'evidence_status',
+      'jurisdiction',
+      'observed_at',
+      'provider_checked_at',
+      'provider_event_id',
+    ],
   );
 });
 
