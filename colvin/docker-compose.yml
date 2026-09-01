@@ -10,9 +10,9 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./database/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
     ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -21,13 +21,13 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ['redis-server', '--appendonly', 'yes', '--requirepass', '${REDIS_PASSWORD}']
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
     volumes:
       - redis-data:/data
     ports:
-      - '${REDIS_PORT:-6379}:6379'
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
-      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'PING']
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "PING"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -45,9 +45,9 @@ services:
       VINCARIO_BASE_URL: ${VINCARIO_BASE_URL:-https://api.vincario.com/3.2}
       VINCARIO_API_KEY: ${VINCARIO_API_KEY:-}
       VINCARIO_SECRET_KEY: ${VINCARIO_SECRET_KEY:-}
-    expose: ['8081']
+    expose: ["8081"]
     healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://localhost:8081/health']
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
       interval: 10s
       timeout: 3s
       retries: 10
@@ -65,15 +65,20 @@ services:
       HISTORY_PROVIDER_TIMEOUT_MS: ${HISTORY_PROVIDER_TIMEOUT_MS:-4000}
       HISTORY_PROVIDER_REFRESH_TTL_HOURS: ${HISTORY_PROVIDER_REFRESH_TTL_HOURS:-24}
       HISTORY_PROVIDER_ERROR_TTL_MINUTES: ${HISTORY_PROVIDER_ERROR_TTL_MINUTES:-15}
+      HISTORY_PROVIDER_DAILY_BUDGET: ${HISTORY_PROVIDER_DAILY_BUDGET:-100}
+      HISTORY_PROVIDER_RETRY_ATTEMPTS: ${HISTORY_PROVIDER_RETRY_ATTEMPTS:-2}
+      HISTORY_PROVIDER_RETRY_BACKOFF_MS: ${HISTORY_PROVIDER_RETRY_BACKOFF_MS:-250}
+      HISTORY_PROVIDER_CIRCUIT_FAILURE_THRESHOLD: ${HISTORY_PROVIDER_CIRCUIT_FAILURE_THRESHOLD:-3}
+      HISTORY_PROVIDER_CIRCUIT_OPEN_SECONDS: ${HISTORY_PROVIDER_CIRCUIT_OPEN_SECONDS:-300}
       VINCARIO_BASE_URL: ${VINCARIO_BASE_URL:-https://api.vincario.com/3.2}
       VINCARIO_API_KEY: ${VINCARIO_API_KEY:-}
       VINCARIO_SECRET_KEY: ${VINCARIO_SECRET_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
-    expose: ['8082']
+    expose: ["8082"]
     healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://localhost:8082/health']
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/health"]
       interval: 10s
       timeout: 3s
       retries: 10
@@ -97,7 +102,7 @@ services:
       history-service:
         condition: service_healthy
     ports:
-      - '${API_PORT:-4000}:4000'
+      - "${API_PORT:-4000}:4000"
     networks: [colvin-network]
 
   web-client:
@@ -109,7 +114,7 @@ services:
     restart: unless-stopped
     depends_on: [api-gateway]
     ports:
-      - '${WEB_PORT:-5173}:80'
+      - "${WEB_PORT:-5173}:80"
     networks: [colvin-network]
 
 volumes:

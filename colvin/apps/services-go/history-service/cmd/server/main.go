@@ -36,15 +36,25 @@ func main() {
 	timeout := time.Duration(getInt("HISTORY_PROVIDER_TIMEOUT_MS", 4000)) * time.Millisecond
 	refreshTTL := time.Duration(getInt("HISTORY_PROVIDER_REFRESH_TTL_HOURS", 24)) * time.Hour
 	errorTTL := time.Duration(getInt("HISTORY_PROVIDER_ERROR_TTL_MINUTES", 15)) * time.Minute
+	retryAttempts := getInt("HISTORY_PROVIDER_RETRY_ATTEMPTS", 2)
+	retryBackoff := time.Duration(getInt("HISTORY_PROVIDER_RETRY_BACKOFF_MS", 250)) * time.Millisecond
+	policy := history.ProviderPolicy{
+		DailyBudget:             getInt("HISTORY_PROVIDER_DAILY_BUDGET", 100),
+		CircuitFailureThreshold: getInt("HISTORY_PROVIDER_CIRCUIT_FAILURE_THRESHOLD", 3),
+		CircuitOpenDuration:     time.Duration(getInt("HISTORY_PROVIDER_CIRCUIT_OPEN_SECONDS", 300)) * time.Second,
+	}
 	var checker provider.Checker = provider.Disabled{}
 	if mode != "local" {
-		checker = provider.NewVincarioStolenChecker(get("VINCARIO_BASE_URL", "https://api.vincario.com/3.2"), os.Getenv("VINCARIO_API_KEY"), os.Getenv("VINCARIO_SECRET_KEY"), timeout)
+		checker = provider.NewVincarioStolenChecker(
+			get("VINCARIO_BASE_URL", "https://api.vincario.com/3.2"),
+			os.Getenv("VINCARIO_API_KEY"), os.Getenv("VINCARIO_SECRET_KEY"), timeout, retryAttempts, retryBackoff,
+		)
 	}
 	repo := history.NewRepository(db)
-	service := history.NewService(repo, checker, mode, refreshTTL, errorTTL)
+	service := history.NewService(repo, checker, mode, refreshTTL, errorTTL, policy)
 	port := get("PORT", "8082")
 	srv := &http.Server{Addr: ":" + port, Handler: httpapi.New(key, service).Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
-	log.Printf("history service listening on %s (provider mode=%s)", srv.Addr, mode)
+	log.Printf("history service listening on %s (provider mode=%s, daily budget=%d)", srv.Addr, mode, policy.DailyBudget)
 	log.Fatal(srv.ListenAndServe())
 }
 

@@ -60,6 +60,31 @@ const providerCheckSchema = z
   })
   .strict();
 
+
+const providerHealthSchema = z
+  .object({
+    provider: z.string().min(1),
+    dailyUsed: z.number().int().nonnegative(),
+    dailyBudget: z.number().int().positive(),
+    consecutiveFailures: z.number().int().nonnegative(),
+    circuitOpen: z.boolean(),
+    circuitOpenUntil: nullableString,
+    lastSuccessAt: nullableString,
+    lastFailureAt: nullableString,
+    totalSuccesses: z.number().int().nonnegative(),
+    totalFailures: z.number().int().nonnegative(),
+  })
+  .strict();
+
+const evidenceConflictSchema = z
+  .object({
+    field: z.string().min(1),
+    status: z.literal('conflicting_evidence'),
+    sources: z.array(z.string().min(1)).min(2),
+    message: z.string().min(1),
+  })
+  .strict();
+
 export const historyResponseSchema = z
   .object({
     records: z.array(historyRecordSchema),
@@ -70,6 +95,8 @@ export const historyResponseSchema = z
         theftStatus: z.enum(['unknown', 'reported', 'clear_in_checked_sources']),
         warnings: z.array(z.string()),
         providerChecks: z.array(providerCheckSchema),
+        providerHealth: z.array(providerHealthSchema),
+        conflicts: z.array(evidenceConflictSchema),
       })
       .strict(),
   })

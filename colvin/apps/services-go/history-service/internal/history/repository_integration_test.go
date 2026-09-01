@@ -179,11 +179,67 @@ func TestRepositoryPersistsProviderChecksAndDeduplicatesEvidence(t *testing.T) {
 	if len(checks) != 1 || checks[0].Status != "match" {
 		t.Fatalf("unexpected checks %#v", checks)
 	}
-	fresh, err := repo.FreshProviderCheck(ctx, vin, "vincario-stolen", "theft", checkedAt)
+	fresh, err := repo.FreshProviderCheck(ctx, vin, "vincario-stolen", "theft", checkedAt, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !fresh {
 		t.Fatal("expected provider check to be fresh")
+	}
+}
+
+func TestRepositoryProviderBudgetAndCircuitState(t *testing.T) {
+	databaseURL := os.Getenv("INTEGRATION_DATABASE_URL")
+	if databaseURL == "" {
+		t.Fatal("INTEGRATION_DATABASE_URL is required")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	db, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	providerName := "integration-provider-budget"
+	_, _ = db.Exec(ctx, "DELETE FROM provider_usage_daily WHERE provider=$1", providerName)
+	_, _ = db.Exec(ctx, "DELETE FROM provider_runtime_state WHERE provider=$1", providerName)
+	defer db.Exec(context.Background(), "DELETE FROM provider_usage_daily WHERE provider=$1", providerName)
+	defer db.Exec(context.Background(), "DELETE FROM provider_runtime_state WHERE provider=$1", providerName)
+
+	repo := NewRepository(db)
+	now := time.Now().UTC()
+	allowed, used, err := repo.ReserveProviderCall(ctx, providerName, now, 2)
+	if err != nil || !allowed || used != 1 {
+		t.Fatalf("unexpected first reservation allowed=%v used=%d err=%v", allowed, used, err)
+	}
+	allowed, used, err = repo.ReserveProviderCall(ctx, providerName, now, 2)
+	if err != nil || !allowed || used != 2 {
+		t.Fatalf("unexpected second reservation allowed=%v used=%d err=%v", allowed, used, err)
+	}
+	allowed, used, err = repo.ReserveProviderCall(ctx, providerName, now, 2)
+	if err != nil || allowed || used != 2 {
+		t.Fatalf("expected exhausted budget allowed=%v used=%d err=%v", allowed, used, err)
+	}
+
+	if _, err := repo.RecordProviderFailure(ctx, providerName, now, 2, time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := repo.RecordProviderFailure(ctx, providerName, now.Add(time.Second), 2, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runtime.ConsecutiveFailures != 2 || runtime.CircuitOpenUntil == nil {
+		t.Fatalf("expected open circuit after threshold, got %#v", runtime)
+	}
+	if err := repo.RecordProviderSuccess(ctx, providerName, now.Add(2*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	runtime, err = repo.ProviderRuntime(ctx, providerName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runtime.ConsecutiveFailures != 0 || runtime.CircuitOpenUntil != nil || runtime.TotalSuccesses != 1 || runtime.TotalFailures != 2 {
+		t.Fatalf("unexpected reset runtime %#v", runtime)
 	}
 }

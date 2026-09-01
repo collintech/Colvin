@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -16,51 +17,95 @@ import (
 const vincarioStolenCheckID = "stolen-check"
 
 type VincarioStolenChecker struct {
-	BaseURL   string
-	APIKey    string
-	SecretKey string
-	Client    *http.Client
+	BaseURL     string
+	APIKey      string
+	SecretKey   string
+	Client      *http.Client
+	MaxAttempts int
+	Backoff     time.Duration
 }
 
-func NewVincarioStolenChecker(baseURL, apiKey, secretKey string, timeout time.Duration) *VincarioStolenChecker {
+func NewVincarioStolenChecker(baseURL, apiKey, secretKey string, timeout time.Duration, maxAttempts int, backoff time.Duration) *VincarioStolenChecker {
 	if strings.TrimSpace(baseURL) == "" {
 		baseURL = "https://api.vincario.com/3.2"
 	}
+	if maxAttempts < 1 {
+		maxAttempts = 1
+	}
+	if backoff <= 0 {
+		backoff = 250 * time.Millisecond
+	}
 	return &VincarioStolenChecker{
-		BaseURL:   strings.TrimRight(baseURL, "/"),
-		APIKey:    strings.TrimSpace(apiKey),
-		SecretKey: strings.TrimSpace(secretKey),
-		Client:    &http.Client{Timeout: timeout},
+		BaseURL:     strings.TrimRight(baseURL, "/"),
+		APIKey:      strings.TrimSpace(apiKey),
+		SecretKey:   strings.TrimSpace(secretKey),
+		Client:      &http.Client{Timeout: timeout},
+		MaxAttempts: maxAttempts,
+		Backoff:     backoff,
 	}
 }
 
 func (c *VincarioStolenChecker) Name() string { return "vincario-stolen" }
 
-func (c *VincarioStolenChecker) Check(ctx context.Context, rawVIN string) (Result, error) {
+func (c *VincarioStolenChecker) Check(ctx context.Context, rawVIN string, gate AttemptGate) (Result, error) {
 	vin := strings.ToUpper(strings.TrimSpace(rawVIN))
 	if c.APIKey == "" || c.SecretKey == "" {
 		return Result{}, fmt.Errorf("vincario credentials are not configured")
 	}
 	checksum := controlSum(vin, vincarioStolenCheckID, c.APIKey, c.SecretKey)
 	endpoint := fmt.Sprintf("%s/%s/%s/%s/%s.json", c.BaseURL, url.PathEscape(c.APIKey), checksum, vincarioStolenCheckID, url.PathEscape(vin))
+	started := time.Now()
+
+	var lastErr error
+	for attempt := 1; attempt <= c.MaxAttempts; attempt++ {
+		if gate != nil {
+			if _, err := gate(ctx); err != nil {
+				return Result{}, err
+			}
+		}
+		result, retry, retryAfter, err := c.checkOnce(ctx, endpoint)
+		if err == nil {
+			result.Attempts = attempt
+			result.LatencyMS = time.Since(started).Milliseconds()
+			return result, nil
+		}
+		lastErr = err
+		if !retry || attempt == c.MaxAttempts {
+			break
+		}
+		delay := c.Backoff * time.Duration(1<<(attempt-1))
+		if retryAfter > delay {
+			delay = retryAfter
+		}
+		select {
+		case <-ctx.Done():
+			return Result{}, ctx.Err()
+		case <-time.After(delay):
+		}
+	}
+	return Result{}, fmt.Errorf("vincario stolen-check failed after %d attempt(s): %w", c.MaxAttempts, lastErr)
+}
+
+func (c *VincarioStolenChecker) checkOnce(ctx context.Context, endpoint string) (Result, bool, time.Duration, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return Result{}, fmt.Errorf("vincario stolen-check request construction failed: %w", err)
+		return Result{}, false, 0, fmt.Errorf("vincario stolen-check request construction failed: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
 
 	res, err := c.Client.Do(req)
 	if err != nil {
-		return Result{}, fmt.Errorf("vincario stolen-check request failed: %w", err)
+		return Result{}, true, 0, fmt.Errorf("vincario stolen-check request failed: %w", err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return Result{}, fmt.Errorf("vincario stolen-check returned HTTP %d", res.StatusCode)
+		retry := res.StatusCode == http.StatusRequestTimeout || res.StatusCode == http.StatusTooManyRequests || res.StatusCode >= 500
+		return Result{}, retry, parseRetryAfter(res.Header.Get("Retry-After")), fmt.Errorf("vincario stolen-check returned HTTP %d", res.StatusCode)
 	}
 
 	var payload map[string]any
 	if err := json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(&payload); err != nil {
-		return Result{}, fmt.Errorf("vincario stolen-check response decode failed: %w", err)
+		return Result{}, false, 0, fmt.Errorf("vincario stolen-check response decode failed: %w", err)
 	}
 
 	status, matched, normalized := normalizeStolenResponse(payload)
@@ -92,7 +137,15 @@ func (c *VincarioStolenChecker) Check(ctx context.Context, rawVIN string) (Resul
 	} else {
 		result.Warnings = []string{"Vincario stolen-check returned an indeterminate result."}
 	}
-	return result, nil
+	return result, false, 0, nil
+}
+
+func parseRetryAfter(value string) time.Duration {
+	seconds, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil || seconds <= 0 || seconds > 30 {
+		return 0
+	}
+	return time.Duration(seconds) * time.Second
 }
 
 func controlSum(vinValue, id, apiKey, secretKey string) string {

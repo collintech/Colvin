@@ -1,10 +1,10 @@
-Colvin v0.13 -> v0.14 Gate 6B
+Colvin v0.14 -> v0.15 — Gate 6C Provider Operations
 
-1. Commit/back up the verified v0.13 Vincario checkpoint.
-2. Extract this archive over the existing Colvin repository root.
-3. Keep your local .env, package-lock.json, and Go go.sum files.
-4. Add the Gate 6B HISTORY_PROVIDER_* values from .env.example to your local .env.
-5. Keep HISTORY_PROVIDER_MODE=local until Vincario credentials and stolen-check entitlement are available.
+1. Commit/back up your green v0.14 checkpoint.
+2. Extract this patch over the existing colvin/ root.
+3. Keep your existing .env, package-lock.json, and Go go.sum files.
+4. Copy the new HISTORY_PROVIDER_* Gate 6C variables from .env.example into your existing .env.
+5. Keep HISTORY_PROVIDER_MODE=local for the first verification unless live Vincario history access is intentionally being tested.
 6. Run:
    npm run format
    npm run quality
@@ -12,4 +12,4 @@ Colvin v0.13 -> v0.14 Gate 6B
    npm run db:migrate
    npm run test:integration
 
-Migration 007 is additive and should apply once, then skip on the second migration run.
+Migration 008 should apply once, then skip on the second run.
