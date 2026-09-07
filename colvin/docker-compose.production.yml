@@ -1,0 +1,202 @@
+# Hardened single-host production topology.
+# Only the web edge is published to the host. API, Go services, PostgreSQL,
+# and Redis remain private to Compose networks.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    networks: [backend]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      [
+        'redis-server',
+        '--appendonly',
+        'yes',
+        '--requirepass',
+        '${REDIS_PASSWORD:?REDIS_PASSWORD is required}',
+      ]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD-SHELL', "REDISCLI_AUTH='${REDIS_PASSWORD}' redis-cli ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    networks: [backend]
+
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    restart: 'no'
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must use the postgres service hostname}
+      MIGRATION_DATABASE_URL: ''
+    command: ['node', 'scripts/migrate.mjs']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt: ['no-new-privileges:true']
+    cap_drop: ['ALL']
+    networks: [backend]
+
+  vin-decoder:
+    build:
+      context: ./apps/services-go/vin-decoder
+    init: true
+    restart: unless-stopped
+    environment:
+      PORT: 8081
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      VIN_PROVIDER_MODE: ${VIN_PROVIDER_MODE:-local}
+      VIN_PROVIDER_TIMEOUT_MS: ${VIN_PROVIDER_TIMEOUT_MS:-4000}
+      VINCARIO_BASE_URL: ${VINCARIO_BASE_URL:-https://api.vincario.com/3.2}
+      VINCARIO_API_KEY: ${VINCARIO_API_KEY:-}
+      VINCARIO_SECRET_KEY: ${VINCARIO_SECRET_KEY:-}
+    expose: ['8081']
+    security_opt: ['no-new-privileges:true']
+    cap_drop: ['ALL']
+    stop_grace_period: 15s
+    networks: [backend]
+
+  history-service:
+    build:
+      context: ./apps/services-go/history-service
+    init: true
+    restart: unless-stopped
+    environment:
+      PORT: 8082
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      HISTORY_PROVIDER_MODE: ${HISTORY_PROVIDER_MODE:-local}
+      HISTORY_PROVIDER_TIMEOUT_MS: ${HISTORY_PROVIDER_TIMEOUT_MS:-4000}
+      HISTORY_PROVIDER_REFRESH_TTL_HOURS: ${HISTORY_PROVIDER_REFRESH_TTL_HOURS:-24}
+      HISTORY_PROVIDER_ERROR_TTL_MINUTES: ${HISTORY_PROVIDER_ERROR_TTL_MINUTES:-15}
+      HISTORY_PROVIDER_DAILY_BUDGET: ${HISTORY_PROVIDER_DAILY_BUDGET:-100}
+      HISTORY_PROVIDER_RETRY_ATTEMPTS: ${HISTORY_PROVIDER_RETRY_ATTEMPTS:-2}
+      HISTORY_PROVIDER_RETRY_BACKOFF_MS: ${HISTORY_PROVIDER_RETRY_BACKOFF_MS:-250}
+      HISTORY_PROVIDER_CIRCUIT_FAILURE_THRESHOLD: ${HISTORY_PROVIDER_CIRCUIT_FAILURE_THRESHOLD:-3}
+      HISTORY_PROVIDER_CIRCUIT_OPEN_SECONDS: ${HISTORY_PROVIDER_CIRCUIT_OPEN_SECONDS:-300}
+      VINCARIO_BASE_URL: ${VINCARIO_BASE_URL:-https://api.vincario.com/3.2}
+      VINCARIO_API_KEY: ${VINCARIO_API_KEY:-}
+      VINCARIO_SECRET_KEY: ${VINCARIO_SECRET_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    expose: ['8082']
+    security_opt: ['no-new-privileges:true']
+    cap_drop: ['ALL']
+    stop_grace_period: 20s
+    networks: [backend]
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    init: true
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      WEB_ORIGIN: ${WEB_ORIGIN:?WEB_ORIGIN is required}
+      ACCOUNT_WEB_URL: ${ACCOUNT_WEB_URL:?ACCOUNT_WEB_URL is required}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL must use the redis service hostname}
+      DB_POOL_MAX: ${DB_POOL_MAX:-10}
+      DB_IDLE_TIMEOUT_MS: ${DB_IDLE_TIMEOUT_MS:-30000}
+      DB_CONNECT_TIMEOUT_MS: ${DB_CONNECT_TIMEOUT_MS:-5000}
+      VEHICLE_CACHE_TTL_SECONDS: ${VEHICLE_CACHE_TTL_SECONDS:-3600}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is required}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
+      REFRESH_REUSE_GRACE_SECONDS: ${REFRESH_REUSE_GRACE_SECONDS:-3}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      VIN_DECODER_URL: http://vin-decoder:8081
+      HISTORY_SERVICE_URL: http://history-service:8082
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      AUTH_LOGIN_ACCOUNT_LIMIT: ${AUTH_LOGIN_ACCOUNT_LIMIT:-10}
+      AUTH_LOGIN_IP_LIMIT: ${AUTH_LOGIN_IP_LIMIT:-30}
+      AUTH_LOGIN_WINDOW_SECONDS: ${AUTH_LOGIN_WINDOW_SECONDS:-900}
+      AUTH_REGISTER_IP_LIMIT: ${AUTH_REGISTER_IP_LIMIT:-10}
+      AUTH_REGISTER_WINDOW_SECONDS: ${AUTH_REGISTER_WINDOW_SECONDS:-3600}
+      AUTH_REFRESH_IP_LIMIT: ${AUTH_REFRESH_IP_LIMIT:-120}
+      AUTH_REFRESH_WINDOW_SECONDS: ${AUTH_REFRESH_WINDOW_SECONDS:-300}
+      AUTH_LIMIT_NAMESPACE: ${AUTH_LIMIT_NAMESPACE:-production}
+      PASSWORD_RESET_TTL_MINUTES: ${PASSWORD_RESET_TTL_MINUTES:-30}
+      PASSWORD_RESET_MIN_RESPONSE_MS: ${PASSWORD_RESET_MIN_RESPONSE_MS:-500}
+      PASSWORD_COMPROMISE_CHECK: ${PASSWORD_COMPROMISE_CHECK:-hibp}
+      PASSWORD_COMPROMISE_TIMEOUT_MS: ${PASSWORD_COMPROMISE_TIMEOUT_MS:-4000}
+      EMAIL_VERIFY_TTL_HOURS: ${EMAIL_VERIFY_TTL_HOURS:-24}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-resend}
+      EMAIL_DELIVERY_ATTEMPTS: ${EMAIL_DELIVERY_ATTEMPTS:-2}
+      EMAIL_DELIVERY_TIMEOUT_MS: ${EMAIL_DELIVERY_TIMEOUT_MS:-10000}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-Colvin <no-reply@example.com>}
+      AUTH_ACCOUNT_ACTION_ACCOUNT_LIMIT: ${AUTH_ACCOUNT_ACTION_ACCOUNT_LIMIT:-5}
+      AUTH_ACCOUNT_ACTION_IP_LIMIT: ${AUTH_ACCOUNT_ACTION_IP_LIMIT:-20}
+      AUTH_ACCOUNT_ACTION_WINDOW_SECONDS: ${AUTH_ACCOUNT_ACTION_WINDOW_SECONDS:-3600}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      vin-decoder:
+        condition: service_healthy
+      history-service:
+        condition: service_healthy
+    expose: ['4000']
+    security_opt: ['no-new-privileges:true']
+    cap_drop: ['ALL']
+    stop_grace_period: 20s
+    networks: [edge, backend]
+
+  web-client:
+    build:
+      context: .
+      dockerfile: apps/web-client/Dockerfile
+      args:
+        VITE_API_BASE_URL: /api/v1
+    init: true
+    restart: unless-stopped
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    ports:
+      - '${WEB_PORT:-5173}:8080'
+    security_opt: ['no-new-privileges:true']
+    cap_drop: ['ALL']
+    stop_grace_period: 10s
+    networks: [edge]
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  edge:
+    driver: bridge
+  backend:
+    driver: bridge
+    internal: true

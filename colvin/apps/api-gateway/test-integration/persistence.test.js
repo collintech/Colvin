@@ -66,7 +66,10 @@ test('database migrations and core tables are present', async () => {
       AND column_name IN ('family_id', 'replaced_by_hash')
     ORDER BY column_name
   `);
-  assert.deepEqual(refreshColumns.rows.map((row) => row.column_name), ['family_id', 'replaced_by_hash']);
+  assert.deepEqual(
+    refreshColumns.rows.map((row) => row.column_name),
+    ['family_id', 'replaced_by_hash'],
+  );
 
   const accountColumns = await pool.query(`
     SELECT column_name FROM information_schema.columns
@@ -74,11 +77,10 @@ test('database migrations and core tables are present', async () => {
       AND column_name IN ('auth_version', 'email_verified_at', 'password_changed_at')
     ORDER BY column_name
   `);
-  assert.deepEqual(accountColumns.rows.map((row) => row.column_name), [
-    'auth_version',
-    'email_verified_at',
-    'password_changed_at',
-  ]);
+  assert.deepEqual(
+    accountColumns.rows.map((row) => row.column_name),
+    ['auth_version', 'email_verified_at', 'password_changed_at'],
+  );
 
   const providerColumns = await pool.query(`
     SELECT column_name FROM information_schema.columns
@@ -86,13 +88,10 @@ test('database migrations and core tables are present', async () => {
       AND column_name IN ('provider_sources', 'provider_warnings', 'provider_attributes', 'provider_refreshed_at')
     ORDER BY column_name
   `);
-  assert.deepEqual(providerColumns.rows.map((row) => row.column_name), [
-    'provider_attributes',
-    'provider_refreshed_at',
-    'provider_sources',
-    'provider_warnings',
-  ]);
-
+  assert.deepEqual(
+    providerColumns.rows.map((row) => row.column_name),
+    ['provider_attributes', 'provider_refreshed_at', 'provider_sources', 'provider_warnings'],
+  );
 
   const historyEvidenceColumns = await pool.query(`
     SELECT column_name FROM information_schema.columns
@@ -100,14 +99,17 @@ test('database migrations and core tables are present', async () => {
       AND column_name IN ('evidence_status', 'jurisdiction', 'provider_event_id', 'evidence_fingerprint', 'observed_at', 'provider_checked_at')
     ORDER BY column_name
   `);
-  assert.deepEqual(historyEvidenceColumns.rows.map((row) => row.column_name), [
-    'evidence_fingerprint',
-    'evidence_status',
-    'jurisdiction',
-    'observed_at',
-    'provider_checked_at',
-    'provider_event_id',
-  ]);
+  assert.deepEqual(
+    historyEvidenceColumns.rows.map((row) => row.column_name),
+    [
+      'evidence_fingerprint',
+      'evidence_status',
+      'jurisdiction',
+      'observed_at',
+      'provider_checked_at',
+      'provider_event_id',
+    ],
+  );
 });
 
 test('transactions commit successful writes', async () => {
@@ -115,7 +117,10 @@ test('transactions commit successful writes', async () => {
 
   try {
     await withTransaction(pool, async (client) => {
-      await client.query('INSERT INTO vehicles(vin, make) VALUES($1, $2)', [vin, 'TransactionTest']);
+      await client.query('INSERT INTO vehicles(vin, make) VALUES($1, $2)', [
+        vin,
+        'TransactionTest',
+      ]);
     });
 
     const result = await pool.query('SELECT make FROM vehicles WHERE vin=$1', [vin]);
@@ -162,7 +167,6 @@ test('Redis invalidation removes a cached vehicle key', async () => {
   await redis.del(key);
   assert.equal(await redis.exists(key), 0);
 });
-
 
 test('Redis distributed auth counter is shared and expires', async () => {
   const key = `colvin:v1:auth-limit:test:ip:${randomUUID()}`;

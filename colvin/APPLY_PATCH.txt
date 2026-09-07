@@ -1,15 +1,9 @@
-Colvin v0.14 -> v0.15 — Gate 6C Provider Operations
+Colvin v0.16 -> v0.16.1 Gate 7 runtime startup fix
 
-1. Commit/back up your green v0.14 checkpoint.
-2. Extract this patch over the existing colvin/ root.
-3. Keep your existing .env, package-lock.json, and Go go.sum files.
-4. Copy the new HISTORY_PROVIDER_* Gate 6C variables from .env.example into your existing .env.
-5. Keep HISTORY_PROVIDER_MODE=local for the first verification unless live Vincario history access is intentionally being tested.
-6. Run:
-   npm run format
-   npm run quality
-   npm run db:migrate
-   npm run db:migrate
-   npm run test:integration
+Changes:
+- Require INTERNAL_API_KEY instead of silently passing an empty value to Go services.
+- Use Docker service hostnames for DATABASE_URL, VIN_DECODER_URL, HISTORY_SERVICE_URL and REDIS_URL in the local full-stack Compose runtime.
+- Remove unnecessary external Dockerfile frontend pin (# syntax=docker/dockerfile:1.7) from application Dockerfiles to avoid an extra Docker Hub auth/token fetch during builds.
 
-Migration 008 should apply once, then skip on the second run.
+Before running Compose, ensure your root .env contains an INTERNAL_API_KEY of at least 24 characters.
+Do not commit .env.

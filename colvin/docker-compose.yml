@@ -33,34 +33,48 @@ services:
       retries: 10
     networks: [colvin-network]
 
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      MIGRATION_DATABASE_URL: ""
+    command: ["node", "scripts/migrate.mjs"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [colvin-network]
+
   vin-decoder:
     build:
       context: ./apps/services-go/vin-decoder
+    init: true
     restart: unless-stopped
     environment:
       PORT: 8081
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
       VIN_PROVIDER_MODE: ${VIN_PROVIDER_MODE:-local}
       VIN_PROVIDER_TIMEOUT_MS: ${VIN_PROVIDER_TIMEOUT_MS:-4000}
       VINCARIO_BASE_URL: ${VINCARIO_BASE_URL:-https://api.vincario.com/3.2}
       VINCARIO_API_KEY: ${VINCARIO_API_KEY:-}
       VINCARIO_SECRET_KEY: ${VINCARIO_SECRET_KEY:-}
     expose: ["8081"]
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    stop_grace_period: 15s
     networks: [colvin-network]
 
   history-service:
     build:
       context: ./apps/services-go/history-service
+    init: true
     restart: unless-stopped
     environment:
       PORT: 8082
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
-      DATABASE_URL: ${DATABASE_URL:-}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       HISTORY_PROVIDER_MODE: ${HISTORY_PROVIDER_MODE:-local}
       HISTORY_PROVIDER_TIMEOUT_MS: ${HISTORY_PROVIDER_TIMEOUT_MS:-4000}
       HISTORY_PROVIDER_REFRESH_TTL_HOURS: ${HISTORY_PROVIDER_REFRESH_TTL_HOURS:-24}
@@ -76,33 +90,44 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     expose: ["8082"]
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8082/health"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    stop_grace_period: 20s
     networks: [colvin-network]
 
   api-gateway:
     build:
       context: .
       dockerfile: apps/api-gateway/Dockerfile
+    init: true
     restart: unless-stopped
     env_file: .env
     environment:
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      VIN_DECODER_URL: http://vin-decoder:8081
+      HISTORY_SERVICE_URL: http://history-service:8082
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       vin-decoder:
         condition: service_healthy
       history-service:
         condition: service_healthy
     ports:
       - "${API_PORT:-4000}:4000"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    stop_grace_period: 20s
     networks: [colvin-network]
 
   web-client:
@@ -111,10 +136,16 @@ services:
       dockerfile: apps/web-client/Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:4000/api/v1}
+    init: true
     restart: unless-stopped
-    depends_on: [api-gateway]
+    depends_on:
+      api-gateway:
+        condition: service_healthy
     ports:
-      - "${WEB_PORT:-5173}:80"
+      - "${WEB_PORT:-5173}:8080"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    stop_grace_period: 10s
     networks: [colvin-network]
 
 volumes:
