@@ -59,3 +59,4 @@ Also require pull requests before merging and block force pushes to the producti
 Gate 8A is CI and build verification only. It does not deploy Colvin.
 
 Gate 8B should add staging delivery using a protected GitHub Environment, environment-scoped secrets, an explicit deployment target, and rollback/health verification. Production promotion should remain a separate controlled step after staging is proven.
+
