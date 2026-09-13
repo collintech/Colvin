@@ -1,0 +1,14 @@
+name: Colvin Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm Actions
+        run: echo "Colvin GitHub Actions is working"
