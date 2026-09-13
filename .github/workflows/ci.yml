@@ -19,8 +19,8 @@ env:
   GO_VERSION: '1.27.1'
 
 defaults:
-run:
-  working-directory: colvin
+  run:    
+    working-directory: colvin
 
 jobs:
   quality:
