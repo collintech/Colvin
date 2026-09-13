@@ -46,7 +46,8 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-          cache-dependency-path: colvin/apps/services-go/**/go.sum
+          cache-dependency-path: colvin/apps/services-go/vin-decoder/go.mod
+          cache-dependency-path: colvin/apps/services-go/history-service/go.mod
 
       - name: Install Node dependencies
         run: npm ci
@@ -103,7 +104,8 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-          cache-dependency-path: apps/services-go/**/go.sum
+          cache-dependency-path: colvin/apps/services-go/vin-decoder/go.mod
+          cache-dependency-path: colvin/apps/services-go/history-service/go.mod
 
       - name: Install Node dependencies
         run: npm ci
