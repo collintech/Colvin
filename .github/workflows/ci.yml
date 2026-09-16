@@ -96,7 +96,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: colvin/package-lock.json
 
       - name: Set up Go
         uses: actions/setup-go@v7
