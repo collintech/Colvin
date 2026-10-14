@@ -57,18 +57,19 @@ test('database migrations and core tables are present', async () => {
       '006_vehicle_provider_provenance.sql',
       '007_history_evidence_layer.sql',
       '008_provider_operations.sql',
+      '009_refresh_family_deadline.sql',
     ],
   );
 
   const refreshColumns = await pool.query(`
     SELECT column_name FROM information_schema.columns
     WHERE table_name = 'refresh_tokens'
-      AND column_name IN ('family_id', 'replaced_by_hash')
+      AND column_name IN ('family_id', 'replaced_by_hash', 'family_expires_at')
     ORDER BY column_name
   `);
   assert.deepEqual(
     refreshColumns.rows.map((row) => row.column_name),
-    ['family_id', 'replaced_by_hash'],
+    ['family_expires_at', 'family_id', 'replaced_by_hash'],
   );
 
   const accountColumns = await pool.query(`
