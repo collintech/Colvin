@@ -15,6 +15,8 @@ const schema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('7d'),
+  REFRESH_ABSOLUTE_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+  REFRESH_COOKIE_SECURE: z.enum(['true', 'false']).optional(),
   REFRESH_REUSE_GRACE_SECONDS: z.coerce.number().int().min(1).max(30).default(3),
   BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
   PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().min(5).max(120).default(30),
@@ -68,4 +70,8 @@ if (data.NODE_ENV === 'production') {
     process.exit(1);
   }
 }
-export const env = { ...data, ACCOUNT_WEB_URL: data.ACCOUNT_WEB_URL ?? data.WEB_ORIGIN };
+export const env = {
+  ...data,
+  ACCOUNT_WEB_URL: data.ACCOUNT_WEB_URL ?? data.WEB_ORIGIN,
+  REFRESH_COOKIE_SECURE: data.NODE_ENV === 'production' || data.REFRESH_COOKIE_SECURE === 'true',
+};
