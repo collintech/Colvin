@@ -14,6 +14,7 @@ RUN npm --workspace apps/web-client run build
 FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
 
 ENV API_UPSTREAM=http://api-gateway:4000
+ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 
 COPY apps/web-client/nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /app/apps/web-client/dist /usr/share/nginx/html
