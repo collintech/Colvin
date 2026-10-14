@@ -1,7 +1,8 @@
 import { env } from '../config/env.js';
 
-export const REFRESH_COOKIE_NAME =
-  env.NODE_ENV === 'production' ? '__Host-colvin_refresh' : 'colvin_refresh';
+export const REFRESH_COOKIE_NAME = env.REFRESH_COOKIE_SECURE
+  ? '__Host-colvin_refresh'
+  : 'colvin_refresh';
 
 function serializeCookie(name, value, options = {}) {
   const parts = [`${name}=${encodeURIComponent(value)}`];
@@ -18,7 +19,7 @@ export function setRefreshCookie(res, token, maxAgeSeconds) {
     'Set-Cookie',
     serializeCookie(REFRESH_COOKIE_NAME, token, {
       httpOnly: true,
-      secure: env.NODE_ENV === 'production',
+      secure: env.REFRESH_COOKIE_SECURE,
       sameSite: 'Lax',
       path: '/',
       maxAge: maxAgeSeconds,
@@ -31,7 +32,7 @@ export function clearRefreshCookie(res) {
     'Set-Cookie',
     serializeCookie(REFRESH_COOKIE_NAME, '', {
       httpOnly: true,
-      secure: env.NODE_ENV === 'production',
+      secure: env.REFRESH_COOKIE_SECURE,
       sameSite: 'Lax',
       path: '/',
       maxAge: 0,

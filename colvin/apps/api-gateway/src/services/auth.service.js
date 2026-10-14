@@ -46,21 +46,32 @@ function publicUser(record) {
   };
 }
 
-function createTokenPair(user) {
+function createTokenPair(user, familyExpiresAt) {
+  const refreshToken = signRefreshToken(user);
+  const refreshExpiresAt = new Date(
+    Math.min(refreshTokenExpiry(refreshToken).getTime(), new Date(familyExpiresAt).getTime()),
+  );
   return {
     accessToken: signAccessToken(user),
-    refreshToken: signRefreshToken(user),
+    refreshToken,
+    refreshExpiresAt,
+    refreshCookieMaxAgeSeconds: Math.max(
+      0,
+      Math.floor((refreshExpiresAt.getTime() - Date.now()) / 1000),
+    ),
   };
 }
 
 async function issueInitialTokens(user, executor) {
-  const tokens = createTokenPair(user);
+  const familyExpiresAt = new Date(Date.now() + env.REFRESH_ABSOLUTE_TTL_DAYS * 86_400_000);
+  const tokens = createTokenPair(user, familyExpiresAt);
   await saveRefreshToken(
     {
       userId: user.id,
       tokenHash: sha256(tokens.refreshToken),
-      expiresAt: refreshTokenExpiry(tokens.refreshToken),
+      expiresAt: tokens.refreshExpiresAt,
       familyId: crypto.randomUUID(),
+      familyExpiresAt,
     },
     executor,
   );
@@ -128,20 +139,26 @@ export async function refresh(refreshToken) {
       return { error: 'INVALID_REFRESH_TOKEN' };
     }
 
+    if (!stored.family_expires_at || new Date(stored.family_expires_at) <= new Date()) {
+      await revokeRefreshFamily(stored.family_id, client);
+      return { error: 'SESSION_EXPIRED' };
+    }
+
     const user = await findUserById(payload.sub, client);
     if (!user || Number(payload.av) !== Number(user.auth_version)) {
       await revokeRefreshFamily(stored.family_id, client);
       return { error: 'INVALID_REFRESH_TOKEN' };
     }
 
-    const tokens = createTokenPair(user);
+    const tokens = createTokenPair(user, stored.family_expires_at);
     await rotateRefreshToken(
       {
         tokenHash,
         replacementHash: sha256(tokens.refreshToken),
-        replacementExpiresAt: refreshTokenExpiry(tokens.refreshToken),
+        replacementExpiresAt: tokens.refreshExpiresAt,
         userId: user.id,
         familyId: stored.family_id,
+        familyExpiresAt: stored.family_expires_at,
       },
       client,
     );
@@ -154,6 +171,9 @@ export async function refresh(refreshToken) {
   }
   if (outcome.error === 'REFRESH_TOKEN_REUSED') {
     throw new AppError(401, 'REFRESH_TOKEN_REUSED', 'Session is no longer valid');
+  }
+  if (outcome.error === 'SESSION_EXPIRED') {
+    throw new AppError(401, 'SESSION_EXPIRED', 'Session expired. Please sign in again');
   }
   if (outcome.error) {
     throw new AppError(401, 'INVALID_REFRESH_TOKEN', 'Refresh token is invalid or expired');

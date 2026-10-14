@@ -106,6 +106,64 @@ test('browser auth keeps refresh token HttpOnly and rotates/revokes token famili
   }
 });
 
+test('refresh rotation retains its absolute family deadline and expires correctly', async () => {
+  const email = `absolute-${randomUUID()}@example.test`;
+  let userId;
+  try {
+    const created = await request(app)
+      .post('/api/v1/auth/register')
+      .set('Origin', origin)
+      .send({ email, password: 'ColvinSecure12345' })
+      .expect(201);
+    userId = created.body.data.user.id;
+    const firstCookie = cookiePair(created);
+    const original = await pool.query(
+      'SELECT family_expires_at FROM refresh_tokens WHERE user_id = $1',
+      [userId],
+    );
+    const deadline = original.rows[0].family_expires_at;
+    assert.ok(Math.abs(new Date(deadline).getTime() - Date.now() - 30 * 86400000) < 60000);
+
+    await pool.query(
+      "UPDATE refresh_tokens SET family_expires_at = now() + interval '5 minutes' WHERE user_id = $1",
+      [userId],
+    );
+    const rotated = await request(app)
+      .post('/api/v1/auth/refresh')
+      .set('Origin', origin)
+      .set('Cookie', firstCookie)
+      .expect(200);
+    const active = await pool.query(
+      'SELECT expires_at, family_expires_at FROM refresh_tokens WHERE user_id=$1 AND revoked_at IS NULL',
+      [userId],
+    );
+    assert.equal(active.rowCount, 1);
+    assert.ok(active.rows[0].expires_at <= active.rows[0].family_expires_at);
+    assert.ok(Number(rotated.headers['set-cookie'][0].match(/Max-Age=(\d+)/)?.[1]) <= 300);
+
+    await pool.query(
+      "UPDATE refresh_tokens SET family_expires_at = now() - interval '1 second' WHERE user_id = $1",
+      [userId],
+    );
+    const expired = await request(app)
+      .post('/api/v1/auth/refresh')
+      .set('Origin', origin)
+      .set('Cookie', cookiePair(rotated))
+      .expect(401);
+    assert.equal(expired.body.error.code, 'SESSION_EXPIRED');
+    const remaining = await pool.query(
+      'SELECT count(*)::int AS count FROM refresh_tokens WHERE user_id=$1 AND revoked_at IS NULL',
+      [userId],
+    );
+    assert.equal(remaining.rows[0].count, 0);
+  } finally {
+    if (userId) {
+      await pool.query('DELETE FROM auth_audit_events WHERE user_id=$1', [userId]);
+      await pool.query('DELETE FROM users WHERE id=$1', [userId]);
+    }
+  }
+});
+
 test('cross-origin browser auth request is rejected before account creation', async () => {
   const response = await request(app)
     .post('/api/v1/auth/register')

@@ -1,20 +1,12 @@
-import { Buffer } from 'node:buffer';
-
 import * as authService from '../services/auth.service.js';
 import * as accountLifecycle from '../services/account-lifecycle.service.js';
 import { recordAuthAudit } from '../services/auth-audit.service.js';
 import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from '../utils/auth-cookie.js';
 
-function cookieMaxAgeSeconds(refreshToken) {
-  const [, payload] = refreshToken.split('.');
-  const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-  return Math.max(0, decoded.exp - Math.floor(Date.now() / 1000));
-}
-
 function sendAuthenticated(res, status, result) {
   res.set('Cache-Control', 'no-store');
   res.set('Pragma', 'no-cache');
-  setRefreshCookie(res, result.refreshToken, cookieMaxAgeSeconds(result.refreshToken));
+  setRefreshCookie(res, result.refreshToken, result.refreshCookieMaxAgeSeconds);
   return res.status(status).json({
     success: true,
     data: { user: result.user, accessToken: result.accessToken },

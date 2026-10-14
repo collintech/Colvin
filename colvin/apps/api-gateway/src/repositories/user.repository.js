@@ -38,12 +38,15 @@ export async function createUser({ email, passwordHash }, executor) {
   ).rows[0];
 }
 
-export async function saveRefreshToken({ userId, tokenHash, expiresAt, familyId }, executor) {
+export async function saveRefreshToken(
+  { userId, tokenHash, expiresAt, familyId, familyExpiresAt },
+  executor,
+) {
   await run(
     executor,
-    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at, family_id)
-     VALUES ($1, $2, $3, $4)`,
-    [userId, tokenHash, expiresAt, familyId],
+    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at, family_id, family_expires_at)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [userId, tokenHash, expiresAt, familyId, familyExpiresAt],
   );
 }
 
@@ -52,7 +55,7 @@ export async function findRefreshTokenForUpdate(tokenHash, executor) {
     (
       await run(
         executor,
-        `SELECT id, user_id, token_hash, expires_at, revoked_at, family_id, replaced_by_hash
+        `SELECT id, user_id, token_hash, expires_at, revoked_at, family_id, replaced_by_hash, family_expires_at
        FROM refresh_tokens
        WHERE token_hash = $1
        FOR UPDATE`,
@@ -63,7 +66,7 @@ export async function findRefreshTokenForUpdate(tokenHash, executor) {
 }
 
 export async function rotateRefreshToken(
-  { tokenHash, replacementHash, replacementExpiresAt, userId, familyId },
+  { tokenHash, replacementHash, replacementExpiresAt, userId, familyId, familyExpiresAt },
   executor,
 ) {
   await run(
@@ -80,6 +83,7 @@ export async function rotateRefreshToken(
       tokenHash: replacementHash,
       expiresAt: replacementExpiresAt,
       familyId,
+      familyExpiresAt,
     },
     executor,
   );
