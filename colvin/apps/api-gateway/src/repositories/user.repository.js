@@ -38,7 +38,10 @@ export async function createUser({ email, passwordHash }, executor) {
   ).rows[0];
 }
 
-export async function saveRefreshToken({ userId, tokenHash, expiresAt, familyId, familyExpiresAt }, executor) {
+export async function saveRefreshToken(
+  { userId, tokenHash, expiresAt, familyId, familyExpiresAt },
+  executor,
+) {
   await run(
     executor,
     `INSERT INTO refresh_tokens (user_id, token_hash, expires_at, family_id, family_expires_at)
