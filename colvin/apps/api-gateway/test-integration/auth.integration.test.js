@@ -139,7 +139,7 @@ test('refresh rotation retains its absolute family deadline and expires correctl
     );
     assert.equal(active.rowCount, 1);
     assert.ok(active.rows[0].expires_at <= active.rows[0].family_expires_at);
-    assert.ok(Number(rotated.headers['set-cookie'][0].match(/Max-Age=(\\d+)/)?.[1]) <= 300);
+    assert.ok(Number(rotated.headers['set-cookie'][0].match(/Max-Age=(\d+)/)?.[1]) <= 300);
 
     await pool.query(
       "UPDATE refresh_tokens SET family_expires_at = now() - interval '1 second' WHERE user_id = $1",
