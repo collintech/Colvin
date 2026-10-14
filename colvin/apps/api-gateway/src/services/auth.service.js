@@ -48,15 +48,17 @@ function publicUser(record) {
 
 function createTokenPair(user, familyExpiresAt) {
   const refreshToken = signRefreshToken(user);
-  const refreshExpiresAt = new Date(Math.min(
-    refreshTokenExpiry(refreshToken).getTime(),
-    new Date(familyExpiresAt).getTime(),
-  ));
+  const refreshExpiresAt = new Date(
+    Math.min(refreshTokenExpiry(refreshToken).getTime(), new Date(familyExpiresAt).getTime()),
+  );
   return {
     accessToken: signAccessToken(user),
     refreshToken,
     refreshExpiresAt,
-    refreshCookieMaxAgeSeconds: Math.max(0, Math.floor((refreshExpiresAt.getTime() - Date.now()) / 1000)),
+    refreshCookieMaxAgeSeconds: Math.max(
+      0,
+      Math.floor((refreshExpiresAt.getTime() - Date.now()) / 1000),
+    ),
   };
 }
 
