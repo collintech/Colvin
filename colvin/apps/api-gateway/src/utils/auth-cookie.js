@@ -1,7 +1,8 @@
 import { env } from '../config/env.js';
 
-export const REFRESH_COOKIE_NAME =
-  env.REFRESH_COOKIE_SECURE ? '__Host-colvin_refresh' : 'colvin_refresh';
+export const REFRESH_COOKIE_NAME = env.REFRESH_COOKIE_SECURE
+  ? '__Host-colvin_refresh'
+  : 'colvin_refresh';
 
 function serializeCookie(name, value, options = {}) {
   const parts = [`${name}=${encodeURIComponent(value)}`];
