@@ -8,7 +8,9 @@ export function postgresTlsOptions({ connectionString, mode, caBase64 }) {
 
   const url = new URL(connectionString);
   if (URL_TLS_PARAMETERS.some((parameter) => url.searchParams.has(parameter))) {
-    throw new Error('Remove SSL query parameters from DATABASE_URL; use DB_SSL_MODE and DB_SSL_CA_BASE64');
+    throw new Error(
+      'Remove SSL query parameters from DATABASE_URL; use DB_SSL_MODE and DB_SSL_CA_BASE64',
+    );
   }
 
   // node-postgres must not override explicit TLS options with URL query parameters.
