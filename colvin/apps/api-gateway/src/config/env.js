@@ -11,6 +11,8 @@ const schema = z.object({
   DB_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
   DB_IDLE_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).default(30000),
   DB_CONNECT_TIMEOUT_MS: z.coerce.number().int().min(500).max(30000).default(5000),
+  DB_SSL_MODE: z.enum(['disable', 'verify-full']).optional(),
+  DB_SSL_CA_BASE64: z.string().optional(),
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_ACCESS_TTL: z.string().default('15m'),
@@ -65,6 +67,9 @@ if (data.NODE_ENV === 'production') {
   if (data.PASSWORD_COMPROMISE_CHECK !== 'hibp') {
     productionErrors.PASSWORD_COMPROMISE_CHECK = ['Must be hibp in production'];
   }
+  if (data.DB_SSL_MODE === 'disable') {
+    productionErrors.DB_SSL_MODE = ['Production requires verify-full TLS'];
+  }
   if (Object.keys(productionErrors).length > 0) {
     console.error('Invalid production security configuration', productionErrors);
     process.exit(1);
@@ -73,5 +78,7 @@ if (data.NODE_ENV === 'production') {
 export const env = {
   ...data,
   ACCOUNT_WEB_URL: data.ACCOUNT_WEB_URL ?? data.WEB_ORIGIN,
+  DB_SSL_MODE:
+    data.DB_SSL_MODE ?? (data.NODE_ENV === 'production' ? 'verify-full' : 'disable'),
   REFRESH_COOKIE_SECURE: data.NODE_ENV === 'production' || data.REFRESH_COOKIE_SECURE === 'true',
 };
