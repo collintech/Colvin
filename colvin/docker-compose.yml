@@ -39,6 +39,10 @@ services:
       dockerfile: apps/api-gateway/Dockerfile
     restart: 'no'
     environment:
+      # The development Postgres image has no TLS configured. Override the
+      # API image's production default only for this local migration service.
+      NODE_ENV: development
+      DB_SSL_MODE: disable
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       MIGRATION_DATABASE_URL: ''
     command: ['node', 'scripts/migrate.mjs']
