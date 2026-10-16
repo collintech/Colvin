@@ -78,7 +78,6 @@ if (data.NODE_ENV === 'production') {
 export const env = {
   ...data,
   ACCOUNT_WEB_URL: data.ACCOUNT_WEB_URL ?? data.WEB_ORIGIN,
-  DB_SSL_MODE:
-    data.DB_SSL_MODE ?? (data.NODE_ENV === 'production' ? 'verify-full' : 'disable'),
+  DB_SSL_MODE: data.DB_SSL_MODE ?? (data.NODE_ENV === 'production' ? 'verify-full' : 'disable'),
   REFRESH_COOKIE_SECURE: data.NODE_ENV === 'production' || data.REFRESH_COOKIE_SECURE === 'true',
 };
