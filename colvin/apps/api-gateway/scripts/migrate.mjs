@@ -6,6 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
+import { postgresTlsOptions } from '../src/database/pg-tls.js';
 
 const { Client } = pg;
 
@@ -28,7 +29,20 @@ if (!databaseUrl) {
   );
 }
 
-const client = new Client({ connectionString: databaseUrl });
+const dbSslMode =
+  process.env.DB_SSL_MODE ?? (process.env.NODE_ENV === 'production' ? 'verify-full' : 'disable');
+if (process.env.NODE_ENV === 'production' && dbSslMode !== 'verify-full') {
+  throw new Error('Production migrations require verify-full PostgreSQL TLS');
+}
+
+const client = new Client({
+  connectionString: databaseUrl,
+  ssl: postgresTlsOptions({
+    connectionString: databaseUrl,
+    mode: dbSslMode,
+    caBase64: process.env.DB_SSL_CA_BASE64,
+  }),
+});
 
 await client.connect();
 
