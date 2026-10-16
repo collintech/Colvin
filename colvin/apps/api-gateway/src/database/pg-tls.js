@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { URL } from 'node:url';
 
 const URL_TLS_PARAMETERS = ['ssl', 'sslmode', 'sslrootcert', 'sslcert', 'sslkey'];
 
