@@ -120,3 +120,20 @@ label span {
     grid-template-columns: 1fr;
   }
 }
+
+.password-input {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+.password-input input {
+  min-width: 0;
+  flex: 1;
+}
+.password-input button {
+  flex-shrink: 0;
+}
+.password-input button:focus-visible {
+  outline: 3px solid #173f78;
+  outline-offset: 2px;
+}
