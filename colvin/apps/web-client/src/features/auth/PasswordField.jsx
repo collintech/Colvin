@@ -1,6 +1,9 @@
 import { forwardRef, useState } from 'react';
 
-const PasswordField = forwardRef(function PasswordField({ id, label, children, ...inputProps }, ref) {
+const PasswordField = forwardRef(function PasswordField(
+  { id, label, children, ...inputProps },
+  ref,
+) {
   const [visible, setVisible] = useState(false);
 
   return (
