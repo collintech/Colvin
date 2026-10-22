@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { confirmPasswordReset } from './auth.api.js';
+import PasswordField from './PasswordField.jsx';
 
 export default function ResetPasswordPage() {
   const [params] = useSearchParams();
@@ -34,18 +35,17 @@ export default function ResetPasswordPage() {
       <section>
         <h1>Choose a new password</h1>
         <form className="card form" onSubmit={submit}>
-          <label>
-            New password
-            <input
-              type="password"
-              autoComplete="new-password"
-              minLength={12}
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
+          <PasswordField
+            id="reset-new-password"
+            label="New password"
+            autoComplete="new-password"
+            minLength={12}
+            required
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          >
             <span>Use at least 12 characters.</span>
-          </label>
+          </PasswordField>
           {!token && <p className="error">This reset link is missing its token.</p>}
           {message && <p>{message}</p>}
           {error && <p className="error">{error}</p>}
