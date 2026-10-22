@@ -67,6 +67,30 @@ input {
   border: 1px solid #aeb7c2;
   border-radius: 8px;
 }
+.password-field {
+  display: grid;
+  gap: 0.4rem;
+}
+.password-input-wrap {
+  position: relative;
+}
+.password-input-wrap input {
+  padding-right: 4.5rem;
+}
+.password-visibility {
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0.4rem 0.6rem;
+  color: #173f78;
+  background: transparent;
+  font-size: 0.875rem;
+}
+.password-visibility:focus-visible {
+  outline: 2px solid #173f78;
+  outline-offset: 2px;
+}
 button {
   border: 0;
   border-radius: 8px;
