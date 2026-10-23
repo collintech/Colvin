@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import PasswordInput from './PasswordInput.jsx';
 
 import { confirmPasswordReset } from './auth.api.js';
+import PasswordField from './PasswordField.jsx';
 
 export default function ResetPasswordPage() {
   const [params] = useSearchParams();

@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { changePasswordRequest, requestEmailVerification } from './auth.api.js';
 import { useAuth } from './useAuth.js';
+import PasswordField from './PasswordField.jsx';
 
 export default function AccountSecurityPage() {
   const { user, logout } = useAuth();
@@ -53,27 +54,23 @@ export default function AccountSecurityPage() {
 
       <form className="card form" onSubmit={changePassword}>
         <h2>Change password</h2>
-        <label>
-          Current password
-          <input
-            type="password"
-            autoComplete="current-password"
-            required
-            value={currentPassword}
-            onChange={(event) => setCurrentPassword(event.target.value)}
-          />
-        </label>
-        <label>
-          New password
-          <input
-            type="password"
-            autoComplete="new-password"
-            minLength={12}
-            required
-            value={newPassword}
-            onChange={(event) => setNewPassword(event.target.value)}
-          />
-        </label>
+        <PasswordField
+          id="account-current-password"
+          label="Current password"
+          autoComplete="current-password"
+          required
+          value={currentPassword}
+          onChange={(event) => setCurrentPassword(event.target.value)}
+        />
+        <PasswordField
+          id="account-new-password"
+          label="New password"
+          autoComplete="new-password"
+          minLength={12}
+          required
+          value={newPassword}
+          onChange={(event) => setNewPassword(event.target.value)}
+        />
         {error && <p className="error">{error}</p>}
         <button>Change password and sign out all sessions</button>
       </form>
