@@ -34,9 +34,11 @@ export default function ForgotPasswordPage() {
           <label>
             Email
             <input
-              type="email"
+              id="reset-email"
               name="email"
-              inputMode="email"
+              type="email"
+              autoCapitalize="none"
+              spellCheck={false}
               autoComplete="email"
               autoCapitalize="none"
               spellCheck={false}
