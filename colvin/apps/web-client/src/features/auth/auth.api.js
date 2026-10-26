@@ -4,7 +4,9 @@ export const registerRequest = (payload) =>
   api.post('/auth/register', payload).then((response) => response.data.data);
 
 export const loginRequest = (payload) =>
-  api.post('/auth/login', payload).then((response) => response.data.data);
+  api
+    .post('/auth/login', payload, { skipAuthRefresh: true })
+    .then((response) => response.data.data);
 
 export const refreshRequest = () => refreshSession();
 
