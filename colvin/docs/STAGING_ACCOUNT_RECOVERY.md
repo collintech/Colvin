@@ -21,6 +21,8 @@ Replace the three IDs using the staging dashboard. These identifiers are not pas
 
 Enter the original account email, check the displayed user ID against the existing row, and enter a new unique password twice. Password input is hidden and terminal input history is disabled. At the final prompt, type the exact `RESET account-email` confirmation only if the account and environment match. Ctrl+C or an incorrect confirmation cancels before recovery.
 
+The final confirmation prompt should appear immediately after repeating the password. Database recovery starts only after the exact confirmation is submitted, when the command prints **Applying staging recovery...**. If an older deployment erases the confirmation prompt in an SSH terminal, cancel with Ctrl+C and rerun the same Node command with `TERM=dumb` before `node`. This affects terminal handling for that invocation only.
+
 The command enforces Colvin's existing password length, bcrypt byte limit and configured compromised-password screening. It rejects reuse of the stored password. If the proposed password already matches, investigate the login request instead of changing the account.
 
 The password hash update, `password_changed_at`, incremented `auth_version`, refresh-session revocation, outstanding password-reset-link revocation and operator audit event commit in one PostgreSQL transaction. An audit write failure rolls back recovery. The account ID, email, role, email-verification status and associated data are preserved. The password and hash are not printed or included in the audit event.
