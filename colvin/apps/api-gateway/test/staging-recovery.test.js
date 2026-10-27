@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { PassThrough, Writable } from 'node:stream';
 import test from 'node:test';
+import { stripVTControlCharacters } from 'node:util';
 
 import { assertStagingTarget } from '../scripts/lib/staging-recovery.js';
 import { createRecoveryPrompt, runRecoveryCommand } from '../scripts/recover-staging-account.mjs';
@@ -78,6 +79,34 @@ test('Ctrl+C cancels a hidden password prompt without displaying its input', asy
   prompt.close();
   assert.equal(io.rendered().includes('PartialSecret'), false);
   assert.equal(io.input.isRaw, false);
+});
+
+test('SSH terminal redraw leaves the final confirmation visible after both hidden password entries', async () => {
+  const previousTerm = process.env.TERM;
+  process.env.TERM = 'xterm-256color';
+  const io = terminalStreams();
+  const prompt = createRecoveryPrompt(io.input, io.output);
+  try {
+    for (const label of ['New password: ', 'Repeat password: ']) {
+      const answer = prompt.ask(label, true);
+      io.input.write('PrivateReplacement67890\r');
+      await answer;
+    }
+    const label = 'Type RESET owner@example.test to commit: ';
+    const answer = prompt.ask(label);
+    // In a normal terminal readline clears from the cursor before repainting.
+    // Checking raw output for the label alone misses a prompt erased afterward.
+    const afterLastClear = io.rendered().split('\u001b[0J').at(-1);
+    const visible = stripVTControlCharacters(afterLastClear);
+    io.input.write('RESET owner@example.test\r');
+    assert.equal(await answer, 'RESET owner@example.test');
+    assert.ok(visible.includes(label), 'confirmation prompt was erased by terminal redraw');
+    assert.equal(io.rendered().includes('PrivateReplacement67890'), false);
+  } finally {
+    prompt.close();
+    if (previousTerm === undefined) delete process.env.TERM;
+    else process.env.TERM = previousTerm;
+  }
 });
 
 test('noninteractive invocation and password command-line arguments never open the database', async () => {

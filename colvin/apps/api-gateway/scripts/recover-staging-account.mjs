@@ -27,10 +27,10 @@ export function createRecoveryPrompt(input, output) {
   return {
     async ask(label, secret = false) {
       if (controller.signal.aborted) throw new RecoveryError('Recovery cancelled.');
-      output.write(label);
       hidden = secret;
+      if (secret) output.write(label);
       try {
-        return await terminal.question('', { signal: controller.signal });
+        return await terminal.question(secret ? '' : label, { signal: controller.signal });
       } finally {
         hidden = false;
         if (secret) output.write('\n');
@@ -89,12 +89,14 @@ export async function runRecoveryCommand({
     const repeated = await prompt.ask('Repeat new password (hidden): ', true);
     if (newPassword !== repeated)
       throw new RecoveryError('Passwords did not match. No recovery performed.');
+    output.write('Passwords match. Type the confirmation below to start recovery.\n');
     const confirmation = await prompt.ask(`Type RESET ${account.email} to commit: `);
     if (confirmation !== `RESET ${account.email}`) {
       throw new RecoveryError('Confirmation did not match. No recovery performed.');
     }
     // Restore terminal echo before database work; secrets never enter shell arguments or history.
     prompt.close();
+    output.write('Applying staging recovery...\n');
     const result = await recovery.resetPassword({
       userId: account.id,
       email: account.email,
