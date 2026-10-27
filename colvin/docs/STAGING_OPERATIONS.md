@@ -9,20 +9,23 @@ The owner reported these checks passing on Railway **staging**:
 - The production configuration preflight passed, and a fresh SSH session confirmed the deployed `NODE_ENV` is `production`.
 - The running gateway's `/ready` response was `ready: true`, `status: ready`, with both PostgreSQL and Redis explicitly `ready`.
 - Browser login, page refresh, logout/re-login, VIN lookup and password-reset email delivery succeeded.
+- After PR #12 deployed, the owner signed in/refreshed and confirmed cookie fields were redacted in new API Gateway HTTP logs.
 
 The custom sending domain remains postponed. Resend's temporary sender still restricts delivery to the permitted Resend test recipient; successful staging delivery is not acceptance of general-user email delivery.
 
-| Reference                                       | Value                                            |
-| ----------------------------------------------- | ------------------------------------------------ |
-| Repository commit                               | `45d9fe961ccba50a0ec91e7fde77b9d85c3c89ff`       |
-| Verified production-mode API Gateway deployment | `3e5a35f9-caac-41e3-b760-99f01999beda`           |
-| Earlier development-mode API Gateway baseline   | `fb50c36b-dfa2-433f-bd1d-7b5a8e7de2bf`           |
-| Application environment                         | `NODE_ENV=production` within Railway `staging`   |
-| Compromised-password screening                  | `PASSWORD_COMPROMISE_CHECK=hibp`                 |
-| PostgreSQL TLS                                  | `DB_SSL_MODE=verify-full` with the configured CA |
-| Secure refresh-cookie setting                   | `REFRESH_COOKIE_SECURE=true`                     |
+| Reference                                         | Value                                            |
+| ------------------------------------------------- | ------------------------------------------------ |
+| Repository commit                                 | `45d9fe961ccba50a0ec91e7fde77b9d85c3c89ff`       |
+| Verified production-mode API Gateway deployment   | `3e5a35f9-caac-41e3-b760-99f01999beda`           |
+| Earlier development-mode API Gateway baseline     | `fb50c36b-dfa2-433f-bd1d-7b5a8e7de2bf`           |
+| Cookie-redaction commit                           | `d13d51ac3ffafcf549c86611009b9fe70e3b0748`       |
+| API Gateway deployment with live log verification | `c78a94fc-05a6-4b36-abfb-25400dd5ca9d`           |
+| Application environment                           | `NODE_ENV=production` within Railway `staging`   |
+| Compromised-password screening                    | `PASSWORD_COMPROMISE_CHECK=hibp`                 |
+| PostgreSQL TLS                                    | `DB_SSL_MODE=verify-full` with the configured CA |
+| Secure refresh-cookie setting                     | `REFRESH_COOKIE_SECURE=true`                     |
 
-The new logging patch must pass CI, deploy and receive its own runtime check before replacing the verified deployment reference above. A deployment ID is an operational reference, not proof that a later deployment has been verified.
+PR #12 passed Quality, Integration and Container Smoke and deployed successfully. Cookie redaction was confirmed by the owner after login and refresh. The full production-mode acceptance reference is retained separately from this later log-verification reference; a deployment ID alone is not proof that every later deployment received all checks.
 
 ## Authentication logs
 
@@ -46,11 +49,10 @@ A full Railway deployment rollback can restore older variables along with the co
 
 ## Remaining operational gates
 
-1. Merge/deploy the reviewed logging patch after Quality, Integration and Container Smoke pass; confirm new cookie-bearing requests have redacted HTTP logs.
-2. Add a bounded, read-only runtime verification command for production mode, dependency readiness and private-service reachability. Keep browser/email checks explicit; a probe must not change accounts or send mail.
-3. Review token handling in frontend/proxy logs, then configure monitoring and alert delivery and verify an alert using a controlled staging exercise.
-4. Rehearse a controlled deployment rollback and record the recovered deployment and post-rollback checks.
-5. Configure backup retention and restore into an isolated target. Verify restored data without replacing the working staging database.
-6. Complete final security and deployment acceptance, including general-user email delivery before launch.
+1. Merge/deploy the reviewed [runtime check](STAGING_RUNTIME_CHECK.md) after Quality, Integration and Container Smoke pass, then run it in a fresh SSH session. Implementation and fixture tests do not replace this live run.
+2. Review token handling in frontend/proxy logs, then configure monitoring and alert delivery and verify an alert using a controlled staging exercise.
+3. Rehearse a controlled deployment rollback and record the recovered deployment and post-rollback checks.
+4. Configure backup retention and restore into an isolated target. Verify restored data without replacing the working staging database.
+5. Complete final security and deployment acceptance, including general-user email delivery before launch.
 
 These are pending tasks. The verified staging production-mode transition is not a production launch or completion of the remaining operational gates.

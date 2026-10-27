@@ -10,6 +10,8 @@ This file is the compact source of truth for continuing the production build in 
 
 Railway **staging** now runs the API Gateway with `NODE_ENV=production` and `PASSWORD_COMPROMISE_CHECK=hibp`. The owner verified the live screening probe, browser breached-password rejection, production configuration validation, PostgreSQL/Redis readiness, login/refresh/logout/re-login, VIN lookup and password-reset email delivery. These completed checks should not be restarted.
 
+PR #12's gateway cookie-log redaction also passed all three CI checks, deployed and was verified by the owner after login/refresh. The next deployment should run the [read-only runtime check](STAGING_RUNTIME_CHECK.md); its live acceptance is pending.
+
 Follow [staging operations](STAGING_OPERATIONS.md) for deployment references, the current security patch and the remaining monitoring, rollback, backup/restore and final acceptance work. The gate descriptions below preserve earlier implementation history; they are not the current work queue.
 
 ## Architecture kept
