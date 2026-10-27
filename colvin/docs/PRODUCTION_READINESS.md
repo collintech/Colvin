@@ -2,7 +2,7 @@
 
 Status: **Production build in progress**
 
-Current staging checkpoint: **Gate 8B**. Follow [staging password screening](STAGING_PASSWORD_SCREENING.md) for HIBP activation and the subsequent production-mode configuration preflight. The early gate-status notes below are historical baseline notes, not a direction to repeat completed gates.
+Current staging checkpoint: **Gate 8B — production mode verified on October 27, 2026**. HIBP screening, production configuration, live PostgreSQL/Redis readiness and browser authentication/VIN/email checks passed. Continue with [staging operations](STAGING_OPERATIONS.md); [password screening](STAGING_PASSWORD_SCREENING.md) retains the completed rollout procedure. The early gate-status notes below are historical baseline notes, not a direction to repeat completed gates.
 
 This document is conservative by design. A component is not marked ready merely because source files exist; every gate must be executable and verified.
 

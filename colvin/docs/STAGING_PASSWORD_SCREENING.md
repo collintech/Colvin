@@ -1,5 +1,7 @@
 # Gate 8B — Staging compromised-password screening
 
+**Completed checkpoint — October 27, 2026:** the owner verified the temporary and persistent live HIBP probes, browser rejection of the public breached sample, production configuration preflight, the deployed `NODE_ENV=production`, live PostgreSQL/Redis readiness and browser authentication/VIN/password-reset email checks. The production-mode deployment is recorded in [staging operations](STAGING_OPERATIONS.md). The procedures below are retained for reference; continue with the remaining operational gates rather than repeating this rollout.
+
 Account recovery and the terminal prompt repair were verified by the owner: original-account login, refresh, logout and a VIN lookup succeeded. Continue from that checkpoint; do not repeat credential rotations or rebuild completed infrastructure gates.
 
 ## Screening behavior
