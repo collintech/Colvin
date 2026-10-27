@@ -14,15 +14,41 @@ const COMMON_PASSWORDS = new Set([
   'admin12345678',
 ]);
 
-export function parsePwnedPasswordRange(body, fullHash) {
-  const suffix = fullHash.slice(5).toUpperCase();
-  for (const line of body.split(/\r?\n/)) {
-    const [candidate, rawCount] = line.trim().split(':');
-    if (candidate?.toUpperCase() !== suffix) continue;
-    const count = Number(rawCount);
-    return Number.isFinite(count) ? count : 0;
+const MAX_RANGE_BYTES = 1024 * 1024;
+
+class ScreeningResponseError extends Error {
+  constructor(kind, httpStatus) {
+    super('Invalid Pwned Passwords response');
+    this.kind = kind;
+    this.httpStatus = httpStatus;
   }
-  return 0;
+}
+
+export function parsePwnedPasswordRange(body, fullHash) {
+  if (typeof body !== 'string' || !body.trim() || !/^[A-F0-9]{40}$/i.test(fullHash)) {
+    throw new ScreeningResponseError('invalid_response');
+  }
+  const suffix = fullHash.slice(5).toUpperCase();
+  let matchedCount = 0;
+  for (const line of body.trim().split(/\r?\n/)) {
+    const match = /^([A-F0-9]{35}):([0-9]+)$/i.exec(line.trim());
+    if (!match) throw new ScreeningResponseError('invalid_response');
+    const count = Number(match[2]);
+    if (!Number.isSafeInteger(count)) throw new ScreeningResponseError('invalid_response');
+    if (match[1].toUpperCase() === suffix) matchedCount = Math.max(matchedCount, count);
+  }
+  return matchedCount;
+}
+
+async function readPasswordRange(response) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of response.body ?? []) {
+    size += chunk.byteLength;
+    if (size > MAX_RANGE_BYTES) throw new ScreeningResponseError('response_too_large');
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks, size).toString('utf8');
 }
 
 export async function compromisedPasswordCount(password) {
@@ -38,20 +64,27 @@ export async function compromisedPasswordCount(password) {
         'Add-Padding': 'true',
         'User-Agent': 'Colvin/1.0 password-screening',
       },
+      redirect: 'error',
       signal: globalThis.AbortSignal.timeout(env.PASSWORD_COMPROMISE_TIMEOUT_MS),
     });
 
-    if (!response.ok) {
-      throw new Error(`Pwned Passwords returned HTTP ${response.status}`);
+    if (response.status !== 200) {
+      if (response.body) await response.body.cancel().catch(() => {});
+      throw new ScreeningResponseError('http', response.status);
     }
 
-    return parsePwnedPasswordRange(await response.text(), fullHash);
+    return parsePwnedPasswordRange(await readPasswordRange(response), fullHash);
   } catch (error) {
-    logger.error({ error }, 'Compromised-password screening unavailable');
+    const failure =
+      error instanceof ScreeningResponseError
+        ? { kind: error.kind, ...(error.httpStatus ? { httpStatus: error.httpStatus } : {}) }
+        : { kind: ['TimeoutError', 'AbortError'].includes(error?.name) ? 'timeout' : 'network' };
+    logger.error({ provider: 'hibp', ...failure }, 'Compromised-password screening unavailable');
     throw new AppError(
       503,
       'PASSWORD_SCREENING_UNAVAILABLE',
       'Password security screening is temporarily unavailable',
+      { provider: 'hibp', ...failure },
     );
   }
 }
