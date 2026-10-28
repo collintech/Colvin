@@ -9,7 +9,7 @@ import hpp from 'hpp';
 import pinoHttp from 'pino-http';
 
 import { env } from './config/env.js';
-import { logger } from './config/logger.js';
+import { logger, serializeHttpRequest } from './config/logger.js';
 import { getReadiness } from './health/readiness.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes.js';
@@ -23,6 +23,7 @@ app.set('trust proxy', 1);
 app.use(
   pinoHttp({
     logger,
+    serializers: { req: serializeHttpRequest },
     genReqId: (req, res) => {
       const id = req.headers['x-request-id'] || crypto.randomUUID();
       res.setHeader('x-request-id', id);

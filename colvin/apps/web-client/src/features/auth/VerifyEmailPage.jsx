@@ -1,16 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 import { confirmEmailVerification } from './auth.api.js';
+import { clearAccountActionUrl, readAccountActionToken } from './account-action-link.js';
 
 export default function VerifyEmailPage() {
-  const [params] = useSearchParams();
-  const [token] = useState(() => params.get('token') || '');
-  const [state, setState] = useState(token ? 'ready' : 'missing');
+  const location = useLocation();
+  const token = readAccountActionToken(location);
 
   useEffect(() => {
-    if (token) window.history.replaceState({}, '', '/verify-email');
-  }, [token]);
+    clearAccountActionUrl(window.history, '/verify-email');
+  }, [location.search, location.hash]);
+
+  return <VerifyEmailForm key={token} token={token} />;
+}
+
+function VerifyEmailForm({ token }) {
+  const [state, setState] = useState(token ? 'ready' : 'missing');
 
   const verify = async () => {
     setState('verifying');

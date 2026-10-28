@@ -19,7 +19,7 @@ env:
   GO_VERSION: '1.27.1'
 
 defaults:
-  run:    
+  run:
     working-directory: colvin
 
 jobs:
@@ -159,6 +159,11 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
       - name: Create container test environment
         shell: bash
         run: |
@@ -187,7 +192,7 @@ jobs:
           PASSWORD_COMPROMISE_CHECK=disabled
           VIN_PROVIDER_MODE=local
           HISTORY_PROVIDER_MODE=local
-          LOG_LEVEL=silent
+          LOG_LEVEL=info
           ENV
 
       - name: Validate Compose configuration
@@ -216,6 +221,9 @@ jobs:
 
       - name: Verify web edge health
         run: curl --fail --silent --show-error http://localhost:5173/healthz
+
+      - name: Verify HTTP log privacy
+        run: node scripts/check-http-log-privacy.mjs
 
       - name: Show container state
         run: docker compose ps -a
