@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import express from 'express';
+import { AxiosError, AxiosHeaders } from 'axios';
 import pinoHttp from 'pino-http';
 import request from 'supertest';
 
@@ -9,7 +10,7 @@ import { installTestRuntimeEnv } from './helpers/runtime-env.js';
 
 installTestRuntimeEnv();
 
-const { createLogger } = await import('../src/config/logger.js');
+const { createLogger, serializeHttpRequest } = await import('../src/config/logger.js');
 
 function captureLogger() {
   const records = [];
@@ -78,6 +79,33 @@ test('credential-free HTTP failures retain status and request correlation', asyn
   assert.equal(typeof records[0].responseTime, 'number');
 });
 
+test('HTTP query strings and referrers stay out of logs while handlers receive the original request', async () => {
+  const { logger, records } = captureLogger();
+  const app = express();
+  app.use(
+    pinoHttp({
+      logger,
+      serializers: { req: serializeHttpRequest },
+      genReqId: () => 'query-redaction-request',
+    }),
+  );
+  app.get('/link-probe', (req, res) => {
+    assert.equal(req.query.token, 'synthetic-query-token');
+    assert.match(req.get('referer'), /synthetic-referrer-token/);
+    res.json({ status: 'ok' });
+  });
+  await request(app)
+    .get('/link-probe?token=synthetic-query-token&source=email')
+    .set('Referer', 'https://colvin.example.invalid/reset-password?token=synthetic-referrer-token')
+    .expect(200, { status: 'ok' });
+  assert.equal(records[0].req.url, '/link-probe');
+  assert.equal(records[0].req.query, undefined);
+  assert.equal(records[0].req.headers.referer, '[Redacted]');
+  assert.equal(records[0].req.id, 'query-redaction-request');
+  assert.equal(records[0].res.statusCode, 200);
+  assert.equal(JSON.stringify(records).includes('synthetic-'), false);
+});
+
 test('structured authentication logs preserve safe diagnostics and redact credential fields', () => {
   const { logger, records } = captureLogger();
   logger.error(
@@ -100,4 +128,20 @@ test('structured authentication logs preserve safe diagnostics and redact creden
   assert.equal(records[0].error.code, 'EMAIL_DELIVERY_FAILED');
   assert.equal(records[0].error.details.reason, 'invalid_api_key');
   assert.equal(records[0].error.details.httpStatus, 401);
+});
+
+test('internal Axios failures retain their code while request credentials are redacted', () => {
+  const { logger, records } = captureLogger();
+  const error = new AxiosError('Internal request timed out', 'ETIMEDOUT', {
+    url: '/v1/decode',
+    headers: new AxiosHeaders({
+      'x-internal-api-key': 'synthetic-private-internal-key',
+      Authorization: 'Bearer synthetic-private-authorization',
+    }),
+  });
+  logger.error({ error, requestId: 'internal-failure-request' }, 'Internal request failed');
+  assert.equal(records[0].error.code, 'ETIMEDOUT');
+  assert.equal(records[0].error.config.headers, '[Redacted]');
+  assert.equal(records[0].requestId, 'internal-failure-request');
+  assert.equal(JSON.stringify(records).includes('synthetic-private'), false);
 });

@@ -15,6 +15,7 @@ FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
 
 ENV API_UPSTREAM=http://api-gateway:4000
 ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
+ENV NGINX_ENVSUBST_FILTER="^(API_UPSTREAM|NGINX_LOCAL_RESOLVERS)$"
 
 COPY apps/web-client/nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /app/apps/web-client/dist /usr/share/nginx/html

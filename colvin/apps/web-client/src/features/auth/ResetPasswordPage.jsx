@@ -1,22 +1,27 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 import PasswordInput from './PasswordInput.jsx';
 
 import { confirmPasswordReset } from './auth.api.js';
-import PasswordField from './PasswordField.jsx';
+import { clearAccountActionUrl, readAccountActionToken } from './account-action-link.js';
 
 export default function ResetPasswordPage() {
-  const [params] = useSearchParams();
-  const [token] = useState(() => params.get('token') || '');
+  const location = useLocation();
+  const token = readAccountActionToken(location);
+
+  useEffect(() => {
+    clearAccountActionUrl(window.history, '/reset-password');
+  }, [location.search, location.hash]);
+
+  return <ResetPasswordForm key={token} token={token} />;
+}
+
+function ResetPasswordForm({ token }) {
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (token) window.history.replaceState({}, '', '/reset-password');
-  }, [token]);
 
   const submit = async (event) => {
     event.preventDefault();

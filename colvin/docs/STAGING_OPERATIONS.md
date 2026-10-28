@@ -10,6 +10,7 @@ The owner reported these checks passing on Railway **staging**:
 - The running gateway's `/ready` response was `ready: true`, `status: ready`, with both PostgreSQL and Redis explicitly `ready`.
 - Browser login, page refresh, logout/re-login, VIN lookup and password-reset email delivery succeeded.
 - After PR #12 deployed, the owner signed in/refreshed and confirmed cookie fields were redacted in new API Gateway HTTP logs.
+- On October 28, the owner ran PR #13's deployed runtime command: production configuration, gateway PostgreSQL/Redis readiness, history readiness and VIN-decoder liveness all passed.
 
 The custom sending domain remains postponed. Resend's temporary sender still restricts delivery to the permitted Resend test recipient; successful staging delivery is not acceptance of general-user email delivery.
 
@@ -20,6 +21,8 @@ The custom sending domain remains postponed. Resend's temporary sender still res
 | Earlier development-mode API Gateway baseline     | `fb50c36b-dfa2-433f-bd1d-7b5a8e7de2bf`           |
 | Cookie-redaction commit                           | `d13d51ac3ffafcf549c86611009b9fe70e3b0748`       |
 | API Gateway deployment with live log verification | `c78a94fc-05a6-4b36-abfb-25400dd5ca9d`           |
+| Runtime-check release commit                      | `f984088e24b246ae3a580a3944e22fe5620bd983`       |
+| Successful runtime-check API Gateway deployment   | `8d66eb43-f1eb-4073-815b-31cfad7f9776`           |
 | Application environment                           | `NODE_ENV=production` within Railway `staging`   |
 | Compromised-password screening                    | `PASSWORD_COMPROMISE_CHECK=hibp`                 |
 | PostgreSQL TLS                                    | `DB_SSL_MODE=verify-full` with the configured CA |
@@ -49,8 +52,8 @@ A full Railway deployment rollback can restore older variables along with the co
 
 ## Remaining operational gates
 
-1. Merge/deploy the reviewed [runtime check](STAGING_RUNTIME_CHECK.md) after Quality, Integration and Container Smoke pass, then run it in a fresh SSH session. Implementation and fixture tests do not replace this live run.
-2. Review token handling in frontend/proxy logs, then configure monitoring and alert delivery and verify an alert using a controlled staging exercise.
+1. Complete the staged [account-link privacy rollout](ACCOUNT_ACTION_LINK_PRIVACY.md): deploy and verify compatible readers/log privacy first, then change newly generated emails to fragment tokens in a separate reviewed change. The live runtime check above is complete.
+2. Configure monitoring and alert delivery after the account-link privacy rollout and verify an alert using a controlled staging exercise.
 3. Rehearse a controlled deployment rollback and record the recovered deployment and post-rollback checks.
 4. Configure backup retention and restore into an isolated target. Verify restored data without replacing the working staging database.
 5. Complete final security and deployment acceptance, including general-user email delivery before launch.
