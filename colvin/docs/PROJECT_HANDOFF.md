@@ -12,6 +12,8 @@ Railway **staging** now runs the API Gateway with `NODE_ENV=production` and `PAS
 
 PR #12's gateway cookie-log redaction also passed all three CI checks, deployed and was verified by the owner after login/refresh. On October 28, the owner ran PR #13's deployed [read-only runtime check](STAGING_RUNTIME_CHECK.md) and all four checks passed. Continue with the staged [account-link privacy rollout](ACCOUNT_ACTION_LINK_PRIVACY.md) before configuring monitoring; do not repeat completed gates.
 
+PR #14 merged and its staging deployments succeeded. The owner reported another runtime-check pass. The sender change to fragment links is prepared in a separate draft; explicitly confirm both synthetic fragment-page browser checks and login/refresh before merging it. Live fragment-email reset acceptance remains pending.
+
 Follow [staging operations](STAGING_OPERATIONS.md) for deployment references, the current security patch and the remaining monitoring, rollback, backup/restore and final acceptance work. The gate descriptions below preserve earlier implementation history; they are not the current work queue.
 
 ## Architecture kept
