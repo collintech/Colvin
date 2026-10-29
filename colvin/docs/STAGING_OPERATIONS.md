@@ -1,6 +1,6 @@
 # Gate 8B — Staging operations
 
-## Verified checkpoint — October 27, 2026
+## Verified checkpoint — October 29, 2026
 
 The owner reported these checks passing on Railway **staging**:
 
@@ -11,6 +11,7 @@ The owner reported these checks passing on Railway **staging**:
 - Browser login, page refresh, logout/re-login, VIN lookup and password-reset email delivery succeeded.
 - After PR #12 deployed, the owner signed in/refreshed and confirmed cookie fields were redacted in new API Gateway HTTP logs.
 - On October 28, the owner ran PR #13's deployed runtime command: production configuration, gateway PostgreSQL/Redis readiness, history readiness and VIN-decoder liveness all passed.
+- After PR #14 merged/deployed on October 28, the owner again reported all four runtime checks passing. On October 29, the owner confirmed that both fragment-page browser tests had already passed and had also been repeated successfully. Reader acceptance is complete; PR #15 enables the new email format after merge/deployment. Live delivery acceptance of that new format remains pending as described in the rollout guide.
 
 The custom sending domain remains postponed. Resend's temporary sender still restricts delivery to the permitted Resend test recipient; successful staging delivery is not acceptance of general-user email delivery.
 
@@ -23,6 +24,9 @@ The custom sending domain remains postponed. Resend's temporary sender still res
 | API Gateway deployment with live log verification | `c78a94fc-05a6-4b36-abfb-25400dd5ca9d`           |
 | Runtime-check release commit                      | `f984088e24b246ae3a580a3944e22fe5620bd983`       |
 | Successful runtime-check API Gateway deployment   | `8d66eb43-f1eb-4073-815b-31cfad7f9776`           |
+| Compatible-reader/privacy commit                  | `bd1f3f6eebc1939f149ab97f02d4a1523f41cc56`       |
+| Compatible-reader web deployment                  | `5f66f2c4-cd2a-4c93-85ff-f0ee22783d5a`           |
+| Privacy release API Gateway deployment            | `1c657c38-6274-4ef0-904f-c10a493c0506`           |
 | Application environment                           | `NODE_ENV=production` within Railway `staging`   |
 | Compromised-password screening                    | `PASSWORD_COMPROMISE_CHECK=hibp`                 |
 | PostgreSQL TLS                                    | `DB_SSL_MODE=verify-full` with the configured CA |
@@ -52,7 +56,7 @@ A full Railway deployment rollback can restore older variables along with the co
 
 ## Remaining operational gates
 
-1. Complete the staged [account-link privacy rollout](ACCOUNT_ACTION_LINK_PRIVACY.md): deploy and verify compatible readers/log privacy first, then change newly generated emails to fragment tokens in a separate reviewed change. The live runtime check above is complete.
+1. Complete the staged [account-link privacy rollout](ACCOUNT_ACTION_LINK_PRIVACY.md): PR #14's deployed readers and the live runtime check have passed. Review/merge PR #15 after green CI, wait for deployment, then validate a newly generated fragment email. Do not repeat the completed reader checks.
 2. Configure monitoring and alert delivery after the account-link privacy rollout and verify an alert using a controlled staging exercise.
 3. Rehearse a controlled deployment rollback and record the recovered deployment and post-rollback checks.
 4. Configure backup retention and restore into an isolated target. Verify restored data without replacing the working staging database.

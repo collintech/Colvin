@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import test, { beforeEach } from 'node:test';
+import { URL } from 'node:url';
+
+import { readAccountActionToken } from '../../web-client/src/features/auth/account-action-link.js';
 
 import { installTestRuntimeEnv } from './helpers/runtime-env.js';
 
@@ -21,6 +24,7 @@ beforeEach(() => {
     RESEND_API_KEY: 're_private_test_key',
     EMAIL_FROM: 'Colvin <onboarding@resend.dev>',
     EMAIL_DELIVERY_ATTEMPTS: 2,
+    ACCOUNT_WEB_URL: 'https://colvin.example.invalid/base?ignored=1#ignored',
   });
 });
 
@@ -47,13 +51,45 @@ test('account email sends its credential only in the authorization header', asyn
     assert.equal(options.headers.Authorization, `Bearer ${env.RESEND_API_KEY}`);
     const body = JSON.parse(options.body);
     assert.deepEqual(body.to, [input.email]);
-    assert.match(body.html, /reset-password\?token=private-reset-token/);
+    assert.match(body.html, /reset-password#token=private-reset-token/);
     assert.equal(options.body.includes(env.RESEND_API_KEY), false);
     return response(200, { id: 'email-1' });
   });
 
   assert.deepEqual(await deliverAccountAction(input), { delivered: true });
   assert.equal(fetch.mock.callCount(), 1);
+});
+
+test('reset and verification emails carry an encoded fragment token that the frontend reader understands', async (t) => {
+  const sent = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(url, 'https://api.resend.com/emails');
+    sent.push(JSON.parse(options.body));
+    return response(200, { id: `email-${sent.length}` });
+  });
+  for (const purpose of ['password_reset', 'email_verify']) {
+    for (const token of ['A'.repeat(43), `${'B'.repeat(40)}+&=`]) {
+      await deliverAccountAction({ ...input, purpose, token });
+      const body = sent.at(-1);
+      const href = /href="([^"]+)"/.exec(body.html)?.[1];
+      assert.ok(href);
+      const link = new URL(href);
+      assert.equal(link.origin, 'https://colvin.example.invalid');
+      assert.equal(
+        link.pathname,
+        purpose === 'password_reset' ? '/reset-password' : '/verify-email',
+      );
+      assert.equal(link.search, '');
+      assert.ok(link.hash.startsWith('#token='));
+      assert.equal(readAccountActionToken(link), token);
+      assert.equal(href.slice(0, href.indexOf('#')).includes(token), false);
+      assert.deepEqual(body.to, [input.email]);
+      assert.equal(
+        body.subject,
+        purpose === 'password_reset' ? 'Reset your Colvin password' : 'Verify your Colvin email',
+      );
+    }
+  }
 });
 
 test('invalid credentials retain a safe provider reason and are not retried', async (t) => {

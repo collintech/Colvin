@@ -1,5 +1,5 @@
 import { setTimeout as sleep } from 'node:timers/promises';
-import { URL } from 'node:url';
+import { URL, URLSearchParams } from 'node:url';
 
 import { env } from '../config/env.js';
 import { AppError } from '../errors/AppError.js';
@@ -69,7 +69,7 @@ function deliveryError(details) {
 function actionUrl(purpose, token) {
   const path = purpose === 'password_reset' ? '/reset-password' : '/verify-email';
   const url = new URL(path, env.ACCOUNT_WEB_URL);
-  url.searchParams.set('token', token);
+  url.hash = new URLSearchParams({ token }).toString();
   return url.toString();
 }
 
