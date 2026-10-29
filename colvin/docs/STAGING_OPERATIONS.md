@@ -11,7 +11,8 @@ The owner reported these checks passing on Railway **staging**:
 - Browser login, page refresh, logout/re-login, VIN lookup and password-reset email delivery succeeded.
 - After PR #12 deployed, the owner signed in/refreshed and confirmed cookie fields were redacted in new API Gateway HTTP logs.
 - On October 28, the owner ran PR #13's deployed runtime command: production configuration, gateway PostgreSQL/Redis readiness, history readiness and VIN-decoder liveness all passed.
-- After PR #14 merged/deployed on October 28, the owner again reported all four runtime checks passing. On October 29, the owner confirmed that both fragment-page browser tests had already passed and had also been repeated successfully. Reader acceptance is complete; PR #15 enables the new email format after merge/deployment. Live delivery acceptance of that new format remains pending as described in the rollout guide.
+- After PR #14 merged/deployed on October 28, the owner again reported all four runtime checks passing. On October 29, the owner confirmed that both fragment-page browser tests had already passed and had also been repeated successfully. Reader acceptance is complete.
+- PR #15 subsequently merged and all four staging deployments reported success. The owner received a fresh reset email, confirmed `/reset-password#token=...`, observed the token disappear, reset the testing-account password and signed in successfully. The original account still accepted its existing credentials. Live fragment-reset acceptance is complete; no further reset is needed for this gate.
 
 The custom sending domain remains postponed. Resend's temporary sender still restricts delivery to the permitted Resend test recipient; successful staging delivery is not acceptance of general-user email delivery.
 
@@ -27,6 +28,9 @@ The custom sending domain remains postponed. Resend's temporary sender still res
 | Compatible-reader/privacy commit                  | `bd1f3f6eebc1939f149ab97f02d4a1523f41cc56`       |
 | Compatible-reader web deployment                  | `5f66f2c4-cd2a-4c93-85ff-f0ee22783d5a`           |
 | Privacy release API Gateway deployment            | `1c657c38-6274-4ef0-904f-c10a493c0506`           |
+| Accepted fragment-sender release commit           | `d50a3fd3ce3066c17982a7a6dda01dad7103a8a6`       |
+| Accepted fragment-sender API Gateway deployment   | `07fe2e97-724c-44cb-aede-cfb066862360`           |
+| Accepted fragment-sender web deployment           | `f7dc3877-bc31-490e-9a1a-65dffaded034`           |
 | Application environment                           | `NODE_ENV=production` within Railway `staging`   |
 | Compromised-password screening                    | `PASSWORD_COMPROMISE_CHECK=hibp`                 |
 | PostgreSQL TLS                                    | `DB_SSL_MODE=verify-full` with the configured CA |
@@ -56,10 +60,19 @@ A full Railway deployment rollback can restore older variables along with the co
 
 ## Remaining operational gates
 
-1. Complete the staged [account-link privacy rollout](ACCOUNT_ACTION_LINK_PRIVACY.md): PR #14's deployed readers and the live runtime check have passed. Review/merge PR #15 after green CI, wait for deployment, then validate a newly generated fragment email. Do not repeat the completed reader checks.
-2. Configure monitoring and alert delivery after the account-link privacy rollout and verify an alert using a controlled staging exercise.
-3. Rehearse a controlled deployment rollback and record the recovered deployment and post-rollback checks.
-4. Configure backup retention and restore into an isolated target. Verify restored data without replacing the working staging database.
-5. Complete final security and deployment acceptance, including general-user email delivery before launch.
+1. Configure monitoring and alert delivery and verify an alert using a controlled staging exercise. The [account-link privacy rollout](ACCOUNT_ACTION_LINK_PRIVACY.md) has passed its live reset acceptance; do not repeat completed reader or reset checks.
+2. Rehearse a controlled deployment rollback and record the recovered deployment and post-rollback checks.
+3. Configure backup retention and restore into an isolated target. Verify restored data without replacing the working staging database.
+4. Complete final security and deployment acceptance, including general-user email delivery before launch.
 
 These are pending tasks. The verified staging production-mode transition is not a production launch or completion of the remaining operational gates.
+
+## Next gate — monitoring and alert delivery
+
+Status: **pending configuration and delivery acceptance**. The next setup decision needs the current Railway workspace plan and an owner-controlled alert destination. Retain the existing plan and services while assessing the available options; this checkpoint makes no billing, credential, service or notification changes.
+
+[Railway healthchecks](https://docs.railway.com/deployments/healthchecks) run during deployment and do not continuously check a deployed service. [Railway resource monitors](https://docs.railway.com/observability) support CPU, RAM, disk and network thresholds with email/in-app notifications, and require Pro. Do not assume access to those monitors or upgrade the workspace to complete this gate. The existing runtime command remains an operator-run check.
+
+The current frontend exposes `/healthz`, which returns a static Nginx response and does not check the gateway or databases. Gateway `/ready` and the private service checks are exercised by the runtime script. The frontend only proxies `/api/`; using its `/ready` path would fall back to the React HTML page and could produce a misleading HTTP 200. Choose actual endpoint contracts and expected response bodies before configuring continuous availability checks. Broader application/dependency coverage may need a focused implementation after the monitoring route is selected.
+
+Acceptance must record the monitor target/scope, interval, alert destination, observed failure notification and observed recovery notification. Test using an isolated monitor or controlled staging exercise, and distinguish a notification test from proof that an outage detector works. Keep credentials, cookies and action tokens out of monitor URLs and exported telemetry. Monitoring remains pending until those results are reported.
