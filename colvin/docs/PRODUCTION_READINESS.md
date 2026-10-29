@@ -2,7 +2,7 @@
 
 Status: **Production build in progress**
 
-Current staging checkpoint: **Gate 8B — production mode verified on October 27, 2026**. HIBP screening, production configuration, live PostgreSQL/Redis readiness and browser authentication/VIN/email checks passed. Continue with [staging operations](STAGING_OPERATIONS.md); [password screening](STAGING_PASSWORD_SCREENING.md) retains the completed rollout procedure. The early gate-status notes below are historical baseline notes, not a direction to repeat completed gates.
+Current staging checkpoint: **Gate 8B — live fragment-reset acceptance completed on October 29, 2026**. Production mode, HIBP screening, PostgreSQL/Redis readiness, browser authentication/VIN/email checks, cookie-log redaction and compatible account-link readers passed earlier. PR #15 is merged/deployed; the owner confirmed the new email fragment, URL cleanup, successful reset/sign-in and unchanged original-account credentials. Next is monitoring and alert delivery in [staging operations](STAGING_OPERATIONS.md). Rollback rehearsal, backup/restore and final launch acceptance remain pending. [Password screening](STAGING_PASSWORD_SCREENING.md) retains the completed rollout procedure. The early gate-status notes below are historical baseline notes, not a direction to repeat completed gates.
 
 This document is conservative by design. A component is not marked ready merely because source files exist; every gate must be executable and verified.
 

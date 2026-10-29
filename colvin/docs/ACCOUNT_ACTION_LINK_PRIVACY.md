@@ -1,8 +1,16 @@
 # Gate 8B — Account-action link privacy
 
+## Verified checkpoint — October 29, 2026
+
+PR #15 merged as `d50a3fd3ce3066c17982a7a6dda01dad7103a8a6`, and all four Railway staging deployment statuses reported success. The owner tested a newly delivered reset email in a private window and confirmed the `/reset-password#token=...` format, URL token removal, successful password reset and subsequent testing-account sign-in. The original account still accepted its own existing credentials. The live fragment-reset acceptance is complete; do not repeat it or the earlier compatible-reader tests.
+
+The accepted gateway deployment is `07fe2e97-724c-44cb-aede-cfb066862360`, with web deployment `f7dc3877-bc31-490e-9a1a-65dffaded034`. These references identify the release; the reported browser checks do not establish continuous monitoring or a new four-check runtime result for this release. Verification-link generation, reader compatibility, purpose binding and single-use behavior retain automated coverage; another live verification email was not required for this reset acceptance.
+
+Continue with monitoring and alert delivery in [staging operations](STAGING_OPERATIONS.md). The rollout procedures below remain as implementation and future-release guidance.
+
 ## Reason for the rollout
 
-Existing reset and verification emails carry an opaque token in a query string. Normal proxy request logs can include that query and the page referrer. Removing the URL after React mounts does not prevent the first document request from reaching the proxy. The server-side token still identifies exactly one user and remains subject to existing expiry, hashing, purpose and single-use checks.
+Before PR #15, reset and verification emails carried an opaque token in a query string. Normal proxy request logs can include that query and the page referrer. Removing the URL after React mounts does not prevent the first document request from reaching the proxy. The server-side token still identifies exactly one user and remains subject to existing expiry, hashing, purpose and single-use checks.
 
 The intended email format is a fragment (`#token=...`), which browsers do not send with the document request. See [MDN URI fragments](https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Fragment). This change requires compatible frontend readers before the gateway starts generating the new format. [OWASP's reset guidance](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html) also recommends a `no-referrer` policy for reset pages.
 
@@ -27,13 +35,13 @@ The token part should disappear from the address bar. The reset page should show
 
 ## Phase 2 — Generate fragment links
 
-PR #15 changes newly generated reset and verification emails to place their encoded token in `#token=...`, with no URL query. The backend token format, database record, purpose, expiry, hashing and single-use validation are unchanged. The PR #14 query reader remains for previously issued emails. This sender change takes effect only after PR #15 is merged and deployed.
+PR #15 changed newly generated reset and verification emails to place their encoded token in `#token=...`, with no URL query. The backend token format, database record, purpose, expiry, hashing and single-use validation are unchanged. The PR #14 query reader remains for previously issued emails. This sender change is merged, deployed and accepted for the live reset flow recorded above.
 
-**Reader acceptance is complete:** PR #14 merged and its four staging deployments succeeded. All four runtime checks passed, and on October 29 the owner confirmed that both fragment-page browser tests had passed, including a repeat check. The earlier login/refresh checks also passed. Do not repeat these completed reader checks. PR #15 is ready for review and merge once its CI checks are green; the remaining live acceptance is a newly generated email after deployment.
+**Reader acceptance is complete:** PR #14 merged and its four staging deployments succeeded. All four runtime checks passed, and on October 29 the owner confirmed that both fragment-page browser tests had passed, including a repeat check. The earlier login/refresh checks also passed. PR #15 then passed Quality, Integration and Container Smoke, merged and deployed. Its live reset-email acceptance is complete. Do not repeat these completed checks.
 
 Automated coverage validates both generated email links through the actual frontend token reader. Integration tests mock only delivery to Resend and use isolated synthetic users in the CI database: a reset changes only its target account, revokes only that account's server-side refresh sessions, rejects replay and preserves the other account's password/session. A verification token verifies only its target, cannot reset a password and cannot be reused. No live account or real email is used by these tests.
 
-After merging PR #15, wait for successful deployment and use the permitted Resend testing account in a separate private window for a new reset email. Confirm the email targets the expected staging frontend with `#token=`, open it in that same private window, change that testing account's password, and sign back in. Confirm the original account still accepts its own credentials. Use the correct saved entry for each email and do not share actual token URLs or passwords.
+For a future change that requires another live email acceptance, wait for successful deployment and use the permitted Resend testing account in a separate private window for a new reset email. Confirm the email targets the expected staging frontend with `#token=`, open it in that same private window, change that testing account's password, and sign back in. Confirm the original account still accepts its own credentials. Use the correct saved entry for each email and do not share actual token URLs or passwords. This procedure is already complete for PR #15.
 
 The existing reset response clears the current browser refresh cookie. If accounts share a browser cookie jar, this may require another sign-in even though the other account's database password and server-side session remain unchanged. A private testing window separates that browser state; no original-account password change is required.
 
@@ -47,4 +55,4 @@ Once fragment emails are issued, preserve a frontend at PR #14's commit `bd1f3f6
 
 ## Limits and next gates
 
-Phase 1 protects normal request/access logs; it does not erase historical logs or guarantee that legacy query tokens cannot appear in proxy error logs. The deployed sender stays in the legacy format until PR #15 is merged and deployed. Keep external log drains pending until the rollout and log-source review are complete. Monitoring/alerts, rollback rehearsal and backup/restore acceptance remain separate work in [staging operations](STAGING_OPERATIONS.md).
+Phase 1 protects normal request/access logs; it does not erase historical logs or guarantee that legacy query tokens cannot appear in proxy error logs. New emails now use fragments. Review every proposed log source before exporting logs to an external provider; the live reset acceptance is not a blanket approval of historical or error-log contents. Monitoring/alerts, rollback rehearsal and backup/restore acceptance remain separate work in [staging operations](STAGING_OPERATIONS.md).
