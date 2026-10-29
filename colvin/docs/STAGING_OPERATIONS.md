@@ -1,6 +1,6 @@
 # Gate 8B — Staging operations
 
-## Verified checkpoint — October 27, 2026
+## Verified checkpoint — October 29, 2026
 
 The owner reported these checks passing on Railway **staging**:
 
@@ -11,7 +11,7 @@ The owner reported these checks passing on Railway **staging**:
 - Browser login, page refresh, logout/re-login, VIN lookup and password-reset email delivery succeeded.
 - After PR #12 deployed, the owner signed in/refreshed and confirmed cookie fields were redacted in new API Gateway HTTP logs.
 - On October 28, the owner ran PR #13's deployed runtime command: production configuration, gateway PostgreSQL/Redis readiness, history readiness and VIN-decoder liveness all passed.
-- After PR #14 merged/deployed on October 28, the owner again reported all four runtime checks passing. Fragment-page browser acceptance and the sender-format switch remain pending as described in the rollout guide.
+- After PR #14 merged/deployed on October 28, the owner again reported all four runtime checks passing. On October 29, the owner confirmed that both fragment-page browser tests had already passed and had also been repeated successfully. Reader acceptance is complete; PR #15 enables the new email format after merge/deployment. Live delivery acceptance of that new format remains pending as described in the rollout guide.
 
 The custom sending domain remains postponed. Resend's temporary sender still restricts delivery to the permitted Resend test recipient; successful staging delivery is not acceptance of general-user email delivery.
 
@@ -56,7 +56,7 @@ A full Railway deployment rollback can restore older variables along with the co
 
 ## Remaining operational gates
 
-1. Complete the staged [account-link privacy rollout](ACCOUNT_ACTION_LINK_PRIVACY.md): deploy and verify compatible readers/log privacy first, then change newly generated emails to fragment tokens in a separate reviewed change. The live runtime check above is complete.
+1. Complete the staged [account-link privacy rollout](ACCOUNT_ACTION_LINK_PRIVACY.md): PR #14's deployed readers and the live runtime check have passed. Review/merge PR #15 after green CI, wait for deployment, then validate a newly generated fragment email. Do not repeat the completed reader checks.
 2. Configure monitoring and alert delivery after the account-link privacy rollout and verify an alert using a controlled staging exercise.
 3. Rehearse a controlled deployment rollback and record the recovered deployment and post-rollback checks.
 4. Configure backup retention and restore into an isolated target. Verify restored data without replacing the working staging database.

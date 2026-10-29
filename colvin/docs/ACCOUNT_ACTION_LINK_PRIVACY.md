@@ -27,13 +27,13 @@ The token part should disappear from the address bar. The reset page should show
 
 ## Phase 2 — Generate fragment links
 
-The sender change is prepared in a separate draft: reset and verification emails now place their encoded token in `#token=...`, with no URL query. The backend token format, database record, purpose, expiry, hashing and single-use validation are unchanged. The PR #14 query reader remains for previously issued emails.
+PR #15 changes newly generated reset and verification emails to place their encoded token in `#token=...`, with no URL query. The backend token format, database record, purpose, expiry, hashing and single-use validation are unchanged. The PR #14 query reader remains for previously issued emails. This sender change takes effect only after PR #15 is merged and deployed.
 
-**Rollout remains pending:** PR #14 merged and its four staging deployments succeeded. The owner reported all four runtime checks passing again on October 28. The two fragment-page browser results and ordinary login/refresh have not yet been explicitly confirmed. Keep this sender change in draft until those results are available; a runtime pass does not prove browser token capture/address cleanup.
+**Reader acceptance is complete:** PR #14 merged and its four staging deployments succeeded. All four runtime checks passed, and on October 29 the owner confirmed that both fragment-page browser tests had passed, including a repeat check. The earlier login/refresh checks also passed. Do not repeat these completed reader checks. PR #15 is ready for review and merge once its CI checks are green; the remaining live acceptance is a newly generated email after deployment.
 
 Automated coverage validates both generated email links through the actual frontend token reader. Integration tests mock only delivery to Resend and use isolated synthetic users in the CI database: a reset changes only its target account, revokes only that account's server-side refresh sessions, rejects replay and preserves the other account's password/session. A verification token verifies only its target, cannot reset a password and cannot be reused. No live account or real email is used by these tests.
 
-After browser acceptance, review/merge the sender change, wait for deployment, and use the permitted Resend testing account in a separate private window for a new reset email. Confirm the email targets the expected staging frontend with `#token=`, open it, change that testing account's password, and sign back in. Confirm the original account still accepts its own credentials. Use the correct saved entry for each email and do not share actual token URLs or passwords.
+After merging PR #15, wait for successful deployment and use the permitted Resend testing account in a separate private window for a new reset email. Confirm the email targets the expected staging frontend with `#token=`, open it in that same private window, change that testing account's password, and sign back in. Confirm the original account still accepts its own credentials. Use the correct saved entry for each email and do not share actual token URLs or passwords.
 
 The existing reset response clears the current browser refresh cookie. If accounts share a browser cookie jar, this may require another sign-in even though the other account's database password and server-side session remain unchanged. A private testing window separates that browser state; no original-account password change is required.
 
@@ -47,4 +47,4 @@ Once fragment emails are issued, preserve a frontend at PR #14's commit `bd1f3f6
 
 ## Limits and next gates
 
-Phase 1 protects normal request/access logs; it does not erase historical logs or guarantee that legacy query tokens cannot appear in proxy error logs. The deployed sender stays in the legacy format until the draft phase-2 change is accepted and deployed. Keep external log drains pending until the rollout and log-source review are complete. Monitoring/alerts, rollback rehearsal and backup/restore acceptance remain separate work in [staging operations](STAGING_OPERATIONS.md).
+Phase 1 protects normal request/access logs; it does not erase historical logs or guarantee that legacy query tokens cannot appear in proxy error logs. The deployed sender stays in the legacy format until PR #15 is merged and deployed. Keep external log drains pending until the rollout and log-source review are complete. Monitoring/alerts, rollback rehearsal and backup/restore acceptance remain separate work in [staging operations](STAGING_OPERATIONS.md).
