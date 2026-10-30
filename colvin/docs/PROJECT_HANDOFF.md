@@ -6,7 +6,7 @@ Product name: **Colvin**
 
 This file is the compact source of truth for continuing the production build in a new chat or development session.
 
-## Current checkpoint — October 29, 2026
+## Current checkpoint — October 30, 2026
 
 Railway **staging** now runs the API Gateway with `NODE_ENV=production` and `PASSWORD_COMPROMISE_CHECK=hibp`. The owner verified the live screening probe, browser breached-password rejection, production configuration validation, PostgreSQL/Redis readiness, login/refresh/logout/re-login, VIN lookup and password-reset email delivery. These completed checks should not be restarted.
 
@@ -14,7 +14,7 @@ PR #12's gateway cookie-log redaction also passed all three CI checks, deployed 
 
 PR #15 passed all three CI jobs, merged as `d50a3fd3ce3066c17982a7a6dda01dad7103a8a6` and deployed successfully. On October 29, the owner confirmed a fresh reset email with `/reset-password#token=...`, URL token removal, successful testing-account reset/sign-in and continued original-account access using its existing credentials. Live fragment-reset acceptance is complete. The accepted gateway deployment is `07fe2e97-724c-44cb-aede-cfb066862360`, with web deployment `f7dc3877-bc31-490e-9a1a-65dffaded034`. Do not repeat the reset or compatible-reader checks.
 
-Next: configure monitoring and verify failure/recovery alert delivery. First establish the current Railway workspace plan and an owner-controlled alert destination; native resource monitors require Pro, while deployment healthchecks do not provide continuous monitoring. See [staging operations](STAGING_OPERATIONS.md) for the existing endpoint limits and acceptance requirements. No plan upgrade, notification destination, external telemetry export or monitoring setup has been applied. Rollback rehearsal, isolated backup/restore and final security acceptance remain pending.
+PR #16's checkpoint is merged with all three CI checks passing. The owner confirmed Railway **Hobby** on October 30. Keep that plan and proceed with [staging monitoring](STAGING_MONITORING.md): a public generic `/api/v1/status` endpoint is prepared for external dependency checks alongside the frontend `/healthz`. Deploy the reviewed endpoint, then configure the external free monitoring account and an owner-controlled email recipient. Continuous monitoring remains pending until active monitors and failure/recovery email delivery are confirmed. No monitoring account, alert destination, paid upgrade or telemetry export has been configured by this change. Rollback rehearsal, isolated backup/restore and final security acceptance remain pending.
 
 Follow [staging operations](STAGING_OPERATIONS.md) for deployment references, the current security patch and the remaining monitoring, rollback, backup/restore and final acceptance work. The gate descriptions below preserve earlier implementation history; they are not the current work queue.
 

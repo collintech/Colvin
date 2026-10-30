@@ -222,6 +222,9 @@ jobs:
       - name: Verify web edge health
         run: curl --fail --silent --show-error http://localhost:5173/healthz
 
+      - name: Verify availability monitor endpoint
+        run: node scripts/check-availability-monitor.mjs
+
       - name: Verify HTTP log privacy
         run: node scripts/check-http-log-privacy.mjs
 
