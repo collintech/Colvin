@@ -10,6 +10,8 @@ import pinoHttp from 'pino-http';
 
 import { env } from './config/env.js';
 import { logger, serializeHttpRequest } from './config/logger.js';
+import { pool } from './database/postgres.js';
+import { createAvailabilityCheck, createAvailabilityHandler } from './health/availability.js';
 import { getReadiness } from './health/readiness.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes.js';
@@ -60,6 +62,19 @@ app.get('/ready', async (_req, res) => {
   const readiness = await getReadiness();
   res.status(readiness.ready ? 200 : 503).json(readiness);
 });
+app.get(
+  '/api/v1/status',
+  createAvailabilityHandler(
+    createAvailabilityCheck({
+      readiness: () =>
+        getReadiness({
+          databasePing: () => pool.query({ text: 'SELECT 1', query_timeout: 2000 }),
+        }),
+      historyUrl: env.HISTORY_SERVICE_URL,
+      decoderUrl: env.VIN_DECODER_URL,
+    }),
+  ),
+);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/vehicles', vehicleRoutes);
 app.use(notFound);
