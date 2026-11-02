@@ -6,7 +6,7 @@ Product name: **Colvin**
 
 This file is the compact source of truth for continuing the production build in a new chat or development session.
 
-## Current checkpoint — October 30, 2026
+## Current checkpoint — November 2, 2026
 
 Railway **staging** now runs the API Gateway with `NODE_ENV=production` and `PASSWORD_COMPROMISE_CHECK=hibp`. The owner verified the live screening probe, browser breached-password rejection, production configuration validation, PostgreSQL/Redis readiness, login/refresh/logout/re-login, VIN lookup and password-reset email delivery. These completed checks should not be restarted.
 
@@ -14,7 +14,11 @@ PR #12's gateway cookie-log redaction also passed all three CI checks, deployed 
 
 PR #15 passed all three CI jobs, merged as `d50a3fd3ce3066c17982a7a6dda01dad7103a8a6` and deployed successfully. On October 29, the owner confirmed a fresh reset email with `/reset-password#token=...`, URL token removal, successful testing-account reset/sign-in and continued original-account access using its existing credentials. Live fragment-reset acceptance is complete. The accepted gateway deployment is `07fe2e97-724c-44cb-aede-cfb066862360`, with web deployment `f7dc3877-bc31-490e-9a1a-65dffaded034`. Do not repeat the reset or compatible-reader checks.
 
-PR #16's checkpoint is merged with all three CI checks passing. The owner confirmed Railway **Hobby** on October 30. Keep that plan and proceed with [staging monitoring](STAGING_MONITORING.md): a public generic `/api/v1/status` endpoint is prepared for external dependency checks alongside the frontend `/healthz`. Deploy the reviewed endpoint, then configure the external free monitoring account and an owner-controlled email recipient. Continuous monitoring remains pending until active monitors and failure/recovery email delivery are confirmed. No monitoring account, alert destination, paid upgrade or telemetry export has been configured by this change. Rollback rehearsal, isolated backup/restore and final security acceptance remain pending.
+PR #17 passed all three CI checks, merged as `99df75addcdbfc7302b781aa0d26ff80c7c5ea5f` and deployed. The public frontend is `https://web-client-staging-1178.up.railway.app`; its `/healthz` and lowercase `/api/v1/status` endpoints returned HTTP 200 with their expected bodies. The accepted gateway deployment is `c1b3c406-c807-40d1-8d0f-98c3763c7fec`, with web deployment `9e8eb752-638f-4e39-ae23-e85ed30f86bc`.
+
+The owner remains on Railway **Hobby** and configured both real Better Stack monitors. On November 2, the owner confirmed that both failure and recovery emails arrived after changing/restoring only a spare monitor's URL, and paused that test monitor. Baseline external availability monitoring and email delivery are complete. Keep the real monitors active. [Staging monitoring](STAGING_MONITORING.md) records the exact form mapping, strict dependency-health scope and remaining observability limits. Do not repeat the alert test or earlier authentication/email checks.
+
+Next: the [controlled staging API Gateway rollback](STAGING_ROLLBACK.md). Record a fresh baseline before deploying this documentation-only candidate; keep credentials and settings unchanged during the window, then restore/verify the two compatible images using their exact recorded deployment rows. This procedure is prepared, not yet performed. Isolated backup/restore and final security/launch acceptance also remain pending.
 
 Follow [staging operations](STAGING_OPERATIONS.md) for deployment references, the current security patch and the remaining monitoring, rollback, backup/restore and final acceptance work. The gate descriptions below preserve earlier implementation history; they are not the current work queue.
 
