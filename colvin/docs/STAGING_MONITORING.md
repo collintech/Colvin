@@ -1,10 +1,14 @@
 # Gate 8B — Staging monitoring on Railway Hobby
 
-## Current state — October 30, 2026
+## Accepted checkpoint — November 2, 2026
 
 The owner confirmed the Railway workspace uses **Hobby**. Keep that plan. PR #16's acceptance checkpoint is merged and all three CI checks passed. The live fragment-email reset check remains complete; this monitoring work requires no password reset.
 
-This change prepares a public dependency-status endpoint and its automated coverage. Continuous monitoring and alert delivery are **pending** until the change is merged/deployed, the owner configures the external monitors and the failure/recovery exercise below passes.
+PR #17 passed Quality, Integration and Container Smoke, merged as `99df75addcdbfc7302b781aa0d26ff80c7c5ea5f` and deployed. The owner configured both real monitors and reported them healthy. On November 2, the assistant independently checked `/healthz` and `/api/v1/status`: both returned HTTP 200 with their expected bodies; the deliberate missing API path returned HTTP 404.
+
+The owner then reused the spare `google.com` monitor for the temporary alert test, changed its URL to the deliberate failure path and restored the healthy URL. The owner confirmed that both the failure and recovery emails arrived and that the temporary monitor was paused. **Baseline external availability monitoring and failure/recovery email delivery have passed.** Keep both real Colvin monitors active. Do not repeat the completed exercise.
+
+The accepted gateway deployment is `c1b3c406-c807-40d1-8d0f-98c3763c7fec`, with web deployment `9e8eb752-638f-4e39-ae23-e85ed30f86bc`. Acceptance is based on the reported results and the direct endpoint checks; exact monitor IDs and email delivery times were not supplied. No alert-delivery latency guarantee is inferred. Resource thresholds, application telemetry and business/provider checks remain outside this baseline's scope. Next is the [controlled staging rollback](STAGING_ROLLBACK.md).
 
 ## Monitoring service
 
@@ -14,7 +18,7 @@ The owner creates/signs into the monitoring account and chooses an email address
 
 ## Endpoint contracts
 
-Use the existing HTTPS **web-client staging origin** from Railway and append the paths below. The illustrative origin `https://colvin.example.invalid` is not a working deployment URL.
+The accepted HTTPS frontend origin is `https://web-client-staging-1178.up.railway.app`. Append the lowercase paths below. `/Api/v1/status` does not match Nginx's `/api/` proxy and may load the React application instead; a frontend HTTP 200 is not proof that the dependency endpoint ran.
 
 | Monitor                       | Path             | Healthy result                   | Coverage                                                                                            |
 | ----------------------------- | ---------------- | -------------------------------- | --------------------------------------------------------------------------------------------------- |
@@ -34,11 +38,34 @@ This is a strict dependency-health signal. Redis degradation triggers its 503 ev
 3. For the dependency monitor, require a successful HTTP status and, where the free account exposes the option, the response keyword `"status":"ok"`. The endpoint uses HTTP 503 for failure, so the HTTP-status check still detects dependency failure without a keyword feature.
 4. Enable email alerts to the owner-controlled recipient. A suggested starting [confirmation/recovery period](https://betterstack.com/docs/uptime/confirmation-and-recovery-period/) is 60 seconds each; record the actual values offered by the account. Both monitors must show healthy before exercising alerts.
 
-The settings above are operator configuration, not actions performed by this PR. Monitor timing includes the check interval, confirmation/recovery periods and delivery latency; it is not an instant notification guarantee.
+The owner applied the monitor setup in Better Stack. Monitor timing includes the check interval, confirmation/recovery periods and delivery latency; it is not an instant notification guarantee. The following field mapping records the setup instructions used with the current form; it is not a claim that every saved provider setting was independently inspected.
+
+| Form field                                       | Setup value                                                                            |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Alert us when                                    | URL becomes unavailable; keyword matching is not required                              |
+| URL to monitor                                   | The frontend origin plus `/api/v1/status` for dependencies, or `/healthz` for the edge |
+| How should we escalate incidents?                | Notify the primary responder; confirm the owner in Who's on-call?                      |
+| Notification channels                            | E-mail enabled; Call, SMS, Push and Critical alert disabled                            |
+| If the primary responder does not acknowledge    | Do nothing                                                                             |
+| Pronounceable monitor name                       | A recognizable Colvin label; the two names may differ from this guide                  |
+| Recovery period / Confirmation period            | One minute each                                                                        |
+| Check frequency                                  | Three minutes                                                                          |
+| Internet Protocol version                        | IPv4 only; a November 2 public DNS check returned an A record and no AAAA record       |
+| SSL/TLS verification                             | On                                                                                     |
+| SSL expiration / Domain expiration               | Don't check; leave the upgrade-only expiry options disabled                            |
+| Expiration notification                          | Leave unchanged while expiry checks are disabled                                       |
+| HTTP method / Request timeout                    | GET / ten seconds                                                                      |
+| Request body / Custom headers                    | Empty; grey examples are placeholders                                                  |
+| Follow redirects / Keep cookies when redirecting | Both unchecked                                                                         |
+| Basic HTTP username/password / Proxy host/port   | Empty; no Colvin, Resend or internal credentials are required                          |
+| Maintenance window                               | Start and end times empty; day buttons unchanged                                       |
+| Maintenance timezone                             | Africa/Lagos, UTC+01:00                                                                |
+| Regions                                          | Europe, North America, Asia and Australia selected                                     |
+| GitHub badge / Metadata                          | No badge action or metadata needed                                                     |
 
 ## Prove failure and recovery alerts without interrupting Colvin
 
-Use a third, temporary monitor named **Colvin staging — alert delivery test**. Keep the two real monitor targets unchanged.
+This procedure passed on November 2. It remains here for a future notification change that requires another acceptance test. Use only a spare temporary monitor, reusing the paused test monitor if appropriate. Keep the two real monitor targets unchanged throughout.
 
 1. Start the temporary monitor at the same frontend `/api/v1/status` URL with the same interval, timeout and recipient. Wait for it to show healthy.
 2. Change only that temporary monitor's path to `/api/v1/monitoring-probe-not-found`. This deliberately absent API route returns HTTP 404 rather than the SPA fallback. Wait for the monitor to report failure and for its failure email to arrive. Record the event and delivery times.
@@ -49,6 +76,6 @@ This exercises an actual HTTP failure detector and its notification/recovery pat
 
 ## Acceptance record
 
-Report only the monitor names, paths, configured timing, healthy/failure/recovery results and event/delivery times. Keep the recipient address, provider account details and credentials private. Record the accepted gateway deployment and commit. This gate remains pending until both real monitors are active and the temporary monitor's failure and recovery emails are confirmed.
+The baseline acceptance above is complete. For future changes, report only the monitor names, paths, configured timing, healthy/failure/recovery results and available event/delivery times. Keep the recipient address, provider account details and credentials private. Record the accepted gateway deployment and commit. Do not present this baseline as database-outage simulation, backup recovery or full production observability acceptance.
 
 If the dependency monitor fails, inspect the existing bounded Railway diagnostics and run the [staging runtime command](STAGING_RUNTIME_CHECK.md) in the current gateway container. Do not change security variables, expose private services or reset accounts to make a monitor pass. Continue to rollback rehearsal and isolated backup/restore acceptance after monitoring delivery is proven.
