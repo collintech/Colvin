@@ -2,7 +2,31 @@
 
 ## Current state — November 4, 2026
 
-Status: **source/tool inventory complete; live encrypted backup, restore acceptance and recurring retention pending**. The compatible gateway rollback, baseline monitoring and earlier authentication/email checks are accepted. Do not repeat them for this drill.
+Status: **first live encrypted backup and isolated local restore accepted on November 4; recurring backups, off-device storage and retention pending**. The owner supplied a successful Windows/Git Bash report for all five verification checks. The public web-edge and dependency-health endpoints were also independently fetched after the drill and both returned HTTP 200, with `ok` and `{"status":"ok"}` respectively. Do not repeat this accepted drill or the earlier rollback, monitoring and authentication/email tests just to establish the same checkpoint.
+
+## Accepted live restore
+
+PR #20 passed Quality, Integration and Container Smoke on head `820d036a9ed023a5e997081a999afd84db942172`, then merged as `0e6dcc888358292c797780161411517a1da2c529`. The owner ran the merged portable-backup procedure on the Windows computer and provided this bounded evidence:
+
+| Accepted evidence                 | Value                                                                                          |
+| --------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Verification time                 | November 4, 2026, 14:18:24 WAT (`2026-11-04T13:18:24.434Z`)                                    |
+| Run ID                            | `9290d5e0-ddc3-4f87-a052-fe26d182c2bc`                                                         |
+| Encrypted archive folder basename | `colvin-staging-20261104T131728Z-o0rZfPp6` under the owner's private `$HOME/ColvinBackups`     |
+| Export origin                     | The expected staging project, environment and Postgres service IDs in the identity table below |
+| Source, dump client and target    | PostgreSQL 18.6; source/target version number `180006`                                         |
+| Restore result                    | `passed: true`; all five checks passed, including snapshot row counts                          |
+| Release/schema inventory          | Nine migration checksums and all 11 expected public tables verified                            |
+| Target isolation                  | Local disposable Docker container, `network: none`                                             |
+| Target image ID                   | `sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81`                      |
+| Reported restore duration         | 21 seconds, including decryption; not an end-to-end disaster-recovery objective                |
+| Source health afterward           | `/healthz`: HTTP 200 `ok`; `/api/v1/status`: HTTP 200 `{"status":"ok"}`                        |
+
+The accepted checks were migration checksums, public tables/columns, constraints/indexes, extensions and snapshot row counts. The encrypted file, its digest and its report remain with the owner; the assistant did not retrieve the archive or inspect database rows. The script checks the encrypted-file digest before restoring. This is owner-supplied live recovery evidence plus a separate public-health observation, not independent custody or inspection of the private archive.
+
+The successful run still displayed prompts to unlock the existing SSH key before GPG encryption/decryption. SSH-key unlocking uses that key's existing passphrase; GPG asks for the backup-encryption passphrase. The report does not prove that an SSH-agent cache was used. Keep the accepted encrypted archive and its passphrase separately. No further SSH-key or password changes are needed to accept this completed manual drill.
+
+## Source and tool inventory
 
 The owner supplied `postgresVersionNumber: 180006` and `databaseSizeBytes: 9090751` (about 9.09 MB). Use PostgreSQL **18** dump/restore tools. The size is an estimate of the database, not the compressed archive. The actual Railway **Hobby** Backups page says **No Backups** and requires **Pro** to create backups, configure schedules or enable PITR. Keep Hobby; no upgrade is required for this portable logical-backup drill.
 
@@ -16,9 +40,9 @@ The owner's Windows/Git Bash tools are Railway CLI **5.64.0**, Docker client/ser
 
 Redis is a degradable cache, not the authoritative backup source. The wrapper fixes these three source IDs and the remote export checks its actual Railway environment before querying. It does not accept a database URL or a restore URL. Leave database credentials, application references and `DB_SSL_MODE=verify-full` unchanged.
 
-## Run the first encrypted backup and restore
+## Procedure for a future manual backup
 
-First merge the implementation PR **after Quality, Integration and Container Smoke pass**. In your existing Colvin checkout, open Git Bash, then run:
+The first live run is accepted; these commands remain for a future backup, not an instruction to repeat it now. Use the reviewed implementation from PR #20 or a later compatible release. In your existing Colvin checkout, open Git Bash, then run:
 
 ```bash
 git switch main
@@ -86,6 +110,10 @@ This command only uses the encrypted local backup and a new isolated local conta
 
 The existing **Integration** job exercises the same source export, symmetric GPG encryption/decryption and local restore/verification against synthetic PostgreSQL 18 data in every public table. It also checks wrong-source refusal, source cleanup/continued availability and encrypted-file corruption refusal. Quality runs the Docker-endpoint, folder/symlink and manifest/checksum guards. No Railway account, live credentials, real backup or user data is used by CI. Linux CI does not replace the owner's first Windows/Git Bash live drill.
 
-The gate still requires a verified **live** encrypted backup, this isolated restore, source-health evidence and an actual recurring backup/retention configuration. A proposed initial recovery-point objective is at most **24 hours**; a one-off manual dump does not meet it. Measure recovery time rather than promising an untested objective. Retain the first accepted encrypted archive while selecting private secondary storage, the schedule, retention and recovery-key custody. No scheduled task, storage bucket, additional Railway service, plan upgrade, native volume backup or PITR setting is created by these scripts.
+The live encrypted backup, isolated local restore and post-drill public-health check are accepted above. Remaining work is **an actual recurring backup schedule, private off-device storage, retention and recovery-key custody**, followed by validation of that unattended path. A proposed initial recovery-point objective is at most **24 hours**; the accepted one-off manual dump does not establish it. The 21-second result measures this restore phase, not complete recovery of Railway infrastructure, configuration, roles, secrets or applications.
+
+The current command is interactive: the successful run required SSH-key and GPG passphrase prompts. Do not place it unchanged into a scheduler and assume backups will complete. The unattended design must handle authentication and encryption without embedding either passphrase in task arguments, environment files, git or CI logs. A Windows-only job also depends on the computer being available; do not claim a 24-hour objective from a schedule that cannot run while it is switched off. Select the runner and private storage before implementing that next stage, preserving the existing Railway Hobby plan and security settings.
+
+Retain the first accepted encrypted archive while selecting the schedule and secondary storage. No recurring task, secondary copy, storage bucket, additional Railway service, plan upgrade, native volume backup or PITR setting has been created or verified by this acceptance record. Broader final security/launch acceptance also remains pending.
 
 References: [Railway native SSH](https://docs.railway.com/cli/ssh), [Railway volume backups](https://docs.railway.com/volumes/backups), [PITR](https://docs.railway.com/volumes/point-in-time-recovery), [PostgreSQL 18 pg_dump](https://www.postgresql.org/docs/18/app-pgdump.html), [pg_restore](https://www.postgresql.org/docs/18/app-pgrestore.html), [official PostgreSQL Docker image](https://hub.docker.com/_/postgres), [GnuPG manual](https://www.gnupg.org/documentation/manuals/gnupg/GPG-Commands.html).

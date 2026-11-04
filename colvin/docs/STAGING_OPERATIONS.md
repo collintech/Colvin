@@ -1,6 +1,6 @@
 # Gate 8B — Staging operations
 
-## Verified checkpoint — November 2, 2026
+## Verified checkpoint — November 4, 2026
 
 The owner reported these checks passing on Railway **staging**:
 
@@ -15,6 +15,7 @@ The owner reported these checks passing on Railway **staging**:
 - PR #15 subsequently merged and all four staging deployments reported success. The owner received a fresh reset email, confirmed `/reset-password#token=...`, observed the token disappear, reset the testing-account password and signed in successfully. The original account still accepted its existing credentials. Live fragment-reset acceptance is complete; no further reset is needed for this gate.
 - PR #17 merged/deployed after all three CI checks passed. Both external Colvin monitors were reported healthy. On November 2, the owner confirmed receipt of the temporary monitor's failure and recovery emails after changing/restoring only its URL, and paused that temporary monitor. Baseline external availability monitoring and email alert delivery are accepted. The assistant also directly verified both healthy endpoint bodies and the deliberate HTTP 404 test path.
 - The compatible PR #17/PR #18 gateway rollback rehearsal passed on November 2. Both restored runtime reports passed all four checks; login, logout, refresh and VIN lookup succeeded. The owner confirmed PR #18 active at the end. Both reports lacked Git-trigger metadata, so the restored release identities were matched to GitHub deployment statuses. See the rollback guide for this acceptance's limits.
+- After PR #20 passed all three CI jobs and merged, the owner completed the first encrypted live backup and isolated local PostgreSQL 18.6 restore on November 4. All five checks passed, including nine migration checksums, all 11 public tables and snapshot row counts. The restore took 21 seconds including decryption with networking disabled. Post-drill public `/healthz` and `/api/v1/status` requests independently returned HTTP 200 and expected bodies. See the backup guide for the run/archive identity and scope. Recurring backups, off-device storage and retention remain pending.
 
 The custom sending domain remains postponed. Resend's temporary sender still restricts delivery to the permitted Resend test recipient; successful staging delivery is not acceptance of general-user email delivery.
 
@@ -68,7 +69,7 @@ A full Railway deployment rollback can restore older variables along with the co
 
 ## Remaining operational gates
 
-1. Complete [backup retention and an isolated restore](STAGING_BACKUP_RESTORE.md). Source/tool inventory is complete: PostgreSQL 18, approximately 9.09 MB, and no native backups on the current Hobby account. After the portable-backup implementation passes all three CI checks, use its Windows/Git Bash command to create the first encrypted backup and verify a disposable local restore. Live acceptance and recurring retention remain pending. Monitoring, live fragment-reset acceptance and the compatible gateway rollback are complete.
+1. Complete [recurring backups, private off-device storage and retention](STAGING_BACKUP_RESTORE.md). The first encrypted live backup, isolated local restore and post-drill public-health check are accepted on November 4. Keep the archive/passphrase separately and do not repeat that manual drill as a pending gate. The current command still needs SSH/GPG prompts; choose an available runner and private storage before implementing and verifying unattended operation. Keep Railway Hobby. Monitoring, live fragment-reset acceptance and the compatible gateway rollback are complete.
 2. Complete final security and deployment acceptance, including general-user email delivery before launch and the remaining observability scope.
 
 These are pending tasks. The verified staging production-mode transition is not a production launch or completion of the remaining operational gates.
