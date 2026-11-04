@@ -131,6 +131,17 @@ function parseManifest(text) {
   return value;
 }
 
+function schemaDifference(actual, expected, location = 'schema') {
+  if (JSON.stringify(actual) === JSON.stringify(expected)) return null;
+  if (actual && expected && typeof actual === 'object' && typeof expected === 'object') {
+    for (const key of new Set([...Object.keys(actual), ...Object.keys(expected)])) {
+      const difference = schemaDifference(actual[key], expected[key], `${location}.${key}`);
+      if (difference) return difference;
+    }
+  }
+  return { location, actual, expected };
+}
+
 function main(command, args) {
   switch (command) {
     case 'source-ids':
@@ -198,6 +209,19 @@ function main(command, args) {
         'Restored counts differ from the export snapshot',
       );
       checkpoint = 'restored schema comparison';
+      const difference = schemaDifference(restored.schema, exported.schema);
+      if (difference) {
+        checkpoint = `restored ${difference.location}`;
+        // This diagnostic is restricted to this test's fixed synthetic source.
+        // Live manifests never print schema values or database rows.
+        if (
+          process.env.CI === 'true' &&
+          exported.origin.projectId === '11111111-1111-4111-8111-111111111111' &&
+          exported.origin.environmentId === '22222222-2222-4222-8222-222222222222' &&
+          exported.origin.serviceId === '33333333-3333-4333-8333-333333333333'
+        )
+          console.error(JSON.stringify(difference));
+      }
       assert.deepEqual(
         restored.schema,
         exported.schema,
