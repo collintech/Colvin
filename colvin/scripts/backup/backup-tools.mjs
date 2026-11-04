@@ -29,6 +29,7 @@ const read = (filename) =>
   fs.readFileSync(path.join(directory, filename), 'utf8').replace(/\r\n/g, '\n');
 const sql = () => read('manifest.sql');
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
+let checkpoint = 'prerequisites';
 
 export function migrations() {
   const folder = path.join(root, 'database/migrations');
@@ -44,26 +45,35 @@ export function migrations() {
 }
 
 export function checkManifest(value) {
+  checkpoint = 'manifest format/version';
   assert.equal(value.formatVersion, 1, 'Unsupported manifest format');
   assert.match(value.postgresVersionNumber, /^18\d{4}$/, 'PostgreSQL 18 required');
+  checkpoint = 'source identity';
   for (const key of ['projectId', 'environmentId', 'serviceId']) {
     assert.match(value.origin[key], /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/);
   }
+  checkpoint = 'dump client';
   assert.match(value.dumpClient, /^pg_dump \(PostgreSQL\) 18\./);
+  checkpoint = 'migration ledger';
   assert.deepEqual(
     value.migrations,
     migrations().map(({ filename, checksum }) => ({ filename, checksum })),
     'Migration ledger differs from this checkout',
   );
+  checkpoint = 'public table inventory';
   assert.deepEqual(value.schema.tables, tables, 'Unexpected public tables');
+  checkpoint = 'snapshot count inventory';
   assert.deepEqual(Object.keys(value.counts).sort(), tables, 'Incomplete row counts');
   for (const count of Object.values(value.counts)) assert.match(count, /^(0|[1-9]\d*)$/);
   assert.equal(value.counts.schema_migrations, String(migrations().length));
+  checkpoint = 'required extension';
   assert.ok(value.schema.extensions.some((item) => item.name === 'pgcrypto'));
+  checkpoint = 'index validity';
   assert.ok(
     value.schema.indexes.length > 0 &&
       value.schema.indexes.every((item) => item.valid && item.ready),
   );
+  checkpoint = 'constraint validity';
   assert.ok(
     value.schema.constraints.length > 0 && value.schema.constraints.every((item) => item.validated),
   );
@@ -94,14 +104,17 @@ function docker(args, input) {
     timeout: 300_000,
     maxBuffer: 2 * 1024 * 1024,
   });
+  if (result.status !== 0) checkpoint = 'local Docker operation';
   assert.equal(result.status, 0, 'Local Docker operation failed');
   return result.stdout.trim();
 }
 
 function checkContainer(container, token) {
+  checkpoint = 'isolated container identity';
   assert.match(container, /^[a-f0-9]{64}$/);
   assert.match(token, /^[a-f0-9-]{36}$/);
   const [info] = JSON.parse(docker(['inspect', container]));
+  checkpoint = 'isolated container configuration';
   assert.equal(info.Config.Labels['colvin.restore-drill'], token);
   assert.equal(info.HostConfig.NetworkMode, 'none');
   assert.equal(info.HostConfig.Privileged, false);
@@ -111,6 +124,7 @@ function checkContainer(container, token) {
 }
 
 function parseManifest(text) {
+  checkpoint = 'manifest parsing';
   assert.ok(Buffer.byteLength(text) <= 1024 * 1024, 'Oversized manifest');
   const value = JSON.parse(text);
   checkManifest(value);
@@ -177,11 +191,13 @@ function main(command, args) {
           `BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;\n${sql()}\nCOMMIT;\n`,
         ),
       );
+      checkpoint = 'restored snapshot counts';
       assert.deepEqual(
         restored.counts,
         exported.counts,
         'Restored counts differ from the export snapshot',
       );
+      checkpoint = 'restored schema comparison';
       assert.deepEqual(
         restored.schema,
         exported.schema,
@@ -208,6 +224,8 @@ function main(command, args) {
             targetImage: info.Image,
             verifiedAt: new Date().toISOString(),
             network: 'none',
+            targetContainerId: container,
+            runId: token,
           },
           null,
           2,
@@ -254,7 +272,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
   } catch {
     // Assertions can include compared database/schema values; never log them.
     console.error(
-      `Backup verification failed (${['docker-check', 'outside-repository', 'verify', 'digest', 'check-digest'].includes(process.argv[2]) ? process.argv[2] : 'operation'}). Check the documented prerequisites and use the matching release checkout.`,
+      `Backup verification failed (${['docker-check', 'outside-repository', 'verify', 'digest', 'check-digest'].includes(process.argv[2]) ? process.argv[2] : 'operation'}). Check: ${checkpoint}. No database values were printed.`,
     );
     process.exitCode = 1;
   }
