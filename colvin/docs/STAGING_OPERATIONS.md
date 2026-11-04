@@ -68,7 +68,7 @@ A full Railway deployment rollback can restore older variables along with the co
 
 ## Remaining operational gates
 
-1. Complete [backup retention and an isolated restore](STAGING_BACKUP_RESTORE.md). First collect source version/size and current backup settings; then make and verify a portable backup without replacing the working staging database. Monitoring, live fragment-reset acceptance and the compatible gateway rollback are complete.
+1. Complete [backup retention and an isolated restore](STAGING_BACKUP_RESTORE.md). Source/tool inventory is complete: PostgreSQL 18, approximately 9.09 MB, and no native backups on the current Hobby account. After the portable-backup implementation passes all three CI checks, use its Windows/Git Bash command to create the first encrypted backup and verify a disposable local restore. Live acceptance and recurring retention remain pending. Monitoring, live fragment-reset acceptance and the compatible gateway rollback are complete.
 2. Complete final security and deployment acceptance, including general-user email delivery before launch and the remaining observability scope.
 
 These are pending tasks. The verified staging production-mode transition is not a production launch or completion of the remaining operational gates.
