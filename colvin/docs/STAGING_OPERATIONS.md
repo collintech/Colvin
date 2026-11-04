@@ -14,6 +14,7 @@ The owner reported these checks passing on Railway **staging**:
 - After PR #14 merged/deployed on October 28, the owner again reported all four runtime checks passing. On October 29, the owner confirmed that both fragment-page browser tests had already passed and had also been repeated successfully. Reader acceptance is complete.
 - PR #15 subsequently merged and all four staging deployments reported success. The owner received a fresh reset email, confirmed `/reset-password#token=...`, observed the token disappear, reset the testing-account password and signed in successfully. The original account still accepted its existing credentials. Live fragment-reset acceptance is complete; no further reset is needed for this gate.
 - PR #17 merged/deployed after all three CI checks passed. Both external Colvin monitors were reported healthy. On November 2, the owner confirmed receipt of the temporary monitor's failure and recovery emails after changing/restoring only its URL, and paused that temporary monitor. Baseline external availability monitoring and email alert delivery are accepted. The assistant also directly verified both healthy endpoint bodies and the deliberate HTTP 404 test path.
+- The compatible PR #17/PR #18 gateway rollback rehearsal passed on November 2. Both restored runtime reports passed all four checks; login, logout, refresh and VIN lookup succeeded. The owner confirmed PR #18 active at the end. Both reports lacked Git-trigger metadata, so the restored release identities were matched to GitHub deployment statuses. See the rollback guide for this acceptance's limits.
 
 The custom sending domain remains postponed. Resend's temporary sender still restricts delivery to the permitted Resend test recipient; successful staging delivery is not acceptance of general-user email delivery.
 
@@ -35,6 +36,9 @@ The custom sending domain remains postponed. Resend's temporary sender still res
 | Accepted monitoring release commit                | `99df75addcdbfc7302b781aa0d26ff80c7c5ea5f`       |
 | Accepted monitoring API Gateway deployment        | `c1b3c406-c807-40d1-8d0f-98c3763c7fec`           |
 | Accepted monitoring web deployment                | `9e8eb752-638f-4e39-ae23-e85ed30f86bc`           |
+| PR #18 merged release commit                      | `fabe97e689e561bc100905fd1d79717e75e87a3a`       |
+| Restored PR #17 gateway, runtime checks passed    | `b26380aa-a724-42c0-abed-39743d26a3a6`           |
+| Restored PR #18 gateway, active at acceptance     | `3f7d8856-6279-4758-a58c-2ad1ce2aaf91`           |
 | Application environment                           | `NODE_ENV=production` within Railway `staging`   |
 | Compromised-password screening                    | `PASSWORD_COMPROMISE_CHECK=hibp`                 |
 | PostgreSQL TLS                                    | `DB_SSL_MODE=verify-full` with the configured CA |
@@ -60,13 +64,12 @@ Keep separate saved entries for the original Colvin email and the Resend testing
 
 The targeted mode rollback is to set only `NODE_ENV` back to `development` in **staging → api-gateway → Variables**, then apply/deploy. Retain the current HIBP setting, verified TLS configuration and current credentials. Reconnect to the new container and check both readiness dependencies and the affected browser flow.
 
-A full Railway deployment rollback can restore older variables along with the code/image. Inspect its variable effects before using it after credential rotations. Recording the deployment references above does not constitute a completed rollback rehearsal.
+A full Railway deployment rollback can restore older variables along with the code/image. Inspect its variable effects before using it after credential rotations. The compatible gateway rehearsal is now accepted in [staging rollback](STAGING_ROLLBACK.md); future deployments require their own current identity and compatibility checks.
 
 ## Remaining operational gates
 
-1. Complete the [controlled deployment rollback](STAGING_ROLLBACK.md) and record the recovered and restored deployments with their checks. The monitoring and live fragment-reset checks are complete.
-2. Configure backup retention and restore into an isolated target. Verify restored data without replacing the working staging database.
-3. Complete final security and deployment acceptance, including general-user email delivery before launch and the remaining observability scope.
+1. Complete [backup retention and an isolated restore](STAGING_BACKUP_RESTORE.md). First collect source version/size and current backup settings; then make and verify a portable backup without replacing the working staging database. Monitoring, live fragment-reset acceptance and the compatible gateway rollback are complete.
+2. Complete final security and deployment acceptance, including general-user email delivery before launch and the remaining observability scope.
 
 These are pending tasks. The verified staging production-mode transition is not a production launch or completion of the remaining operational gates.
 
