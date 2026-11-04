@@ -131,6 +131,31 @@ function parseManifest(text) {
   return value;
 }
 
+export function canonicalChecks(constraints, query) {
+  const checks = constraints.filter((item) => item.definition.startsWith('CHECK ('));
+  if (!checks.length) return constraints;
+  // pg_dump/restore may reparse an array coercion as element coercions. Use
+  // PostgreSQL's parser on both definitions, with the verified column types,
+  // rather than treating different SQL spellings as different constraints.
+  const statements = checks.map((item, index) => {
+    assert.ok(tables.includes(item.table));
+    assert.match(item.name, /^[A-Za-z0-9_]+$/);
+    return `CREATE TEMP TABLE colvin_check_${index} (LIKE public."${item.table}");
+ALTER TABLE colvin_check_${index} ADD CONSTRAINT backup_check ${item.definition};
+SELECT jsonb_build_object('definition', pg_get_constraintdef(oid)) FROM pg_constraint
+WHERE conrelid = 'pg_temp.colvin_check_${index}'::regclass AND conname = 'backup_check';`;
+  });
+  const result = query(
+    `BEGIN;\nSET LOCAL statement_timeout='30s';\nSET LOCAL standard_conforming_strings=on;\n${statements.join('\n')}\nROLLBACK;\n`,
+  );
+  const parsed = result.split('\n').map((line) => JSON.parse(line).definition);
+  assert.equal(parsed.length, checks.length);
+  let index = 0;
+  return constraints.map((item) =>
+    item.definition.startsWith('CHECK (') ? { ...item, definition: parsed[index++] } : item,
+  );
+}
+
 function schemaDifference(actual, expected, location = 'schema') {
   if (JSON.stringify(actual) === JSON.stringify(expected)) return null;
   if (actual && expected && typeof actual === 'object' && typeof expected === 'object') {
@@ -209,18 +234,30 @@ function main(command, args) {
         'Restored counts differ from the export snapshot',
       );
       checkpoint = 'restored schema comparison';
+      const query = (input) =>
+        docker(
+          [
+            'exec',
+            '-i',
+            container,
+            'psql',
+            '-XqAt',
+            '-v',
+            'ON_ERROR_STOP=1',
+            '-U',
+            'colvin_restore',
+            '-d',
+            'colvin_restore',
+          ],
+          input,
+        );
+      checkpoint = 'source CHECK expressions';
+      exported.schema.constraints = canonicalChecks(exported.schema.constraints, query);
+      checkpoint = 'restored CHECK expressions';
+      restored.schema.constraints = canonicalChecks(restored.schema.constraints, query);
       const difference = schemaDifference(restored.schema, exported.schema);
       if (difference) {
         checkpoint = `restored ${difference.location}`;
-        // This diagnostic is restricted to this test's fixed synthetic source.
-        // Live manifests never print schema values or database rows.
-        if (
-          process.env.CI === 'true' &&
-          exported.origin.projectId === '11111111-1111-4111-8111-111111111111' &&
-          exported.origin.environmentId === '22222222-2222-4222-8222-222222222222' &&
-          exported.origin.serviceId === '33333333-3333-4333-8333-333333333333'
-        )
-          console.error(JSON.stringify(difference));
       }
       assert.deepEqual(
         restored.schema,

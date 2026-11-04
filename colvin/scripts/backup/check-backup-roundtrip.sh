@@ -33,6 +33,7 @@ for ((attempt=0; attempt<60; attempt++)); do
 done
 [[ "$ready" == true ]]
 node "$tools" fixture-sql | docker exec -i "$fixture" psql -Xq -v ON_ERROR_STOP=1 -U colvin_fixture -d colvin_fixture >/dev/null
+node "$script_dir/check-constraint-comparison.mjs" "$fixture"
 
 if node "$tools" render-source | docker exec -i "$fixture" bash -s -- "$project" "$environment" 44444444-4444-4444-8444-444444444444 >"$tmp_dir/refused" 2>"$tmp_dir/error"; then
   echo 'Wrong-service export was not refused.' >&2; exit 1
