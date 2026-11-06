@@ -28,6 +28,10 @@ const tables = [
 const read = (filename) =>
   fs.readFileSync(path.join(directory, filename), 'utf8').replace(/\r\n/g, '\n');
 const sql = () => read('manifest.sql');
+export const renderExport = (network = false) =>
+  read(network ? 'export-network-source.sh' : 'export-source.sh')
+    .replace('__COLVIN_SNAPSHOT_BODY__', read('snapshot-export.sh'))
+    .replace('__COLVIN_MANIFEST_SQL__', sql());
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 let checkpoint = 'prerequisites';
 
@@ -169,6 +173,9 @@ function schemaDifference(actual, expected, location = 'schema') {
 
 function main(command, args) {
   switch (command) {
+    case 'validate-manifest':
+      parseManifest(fs.readFileSync(args[0], 'utf8'));
+      break;
     case 'source-ids':
       console.log(Object.values(source).join(' '));
       break;
@@ -176,7 +183,10 @@ function main(command, args) {
       console.log(randomUUID());
       break;
     case 'render-source':
-      process.stdout.write(read('export-source.sh').replace('__COLVIN_MANIFEST_SQL__', sql()));
+      process.stdout.write(renderExport());
+      break;
+    case 'render-network-source':
+      process.stdout.write(renderExport(true));
       break;
     case 'outside-repository':
       checkOutsideRepository(args[0]);

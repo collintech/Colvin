@@ -148,6 +148,9 @@ jobs:
       - name: Verify encrypted PostgreSQL 18 backup and isolated restore
         run: bash scripts/backup/check-backup-roundtrip.sh
 
+      - name: Verify read-only TLS export and public-key recovery
+        run: bash scripts/backup/check-network-backup.sh
+
   container-smoke:
     name: Container Smoke
     runs-on: ubuntu-latest
