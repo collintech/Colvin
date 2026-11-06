@@ -1,6 +1,6 @@
 # Gate 8B — Scheduled encrypted staging backups
 
-Status: **implementation prepared; new service, credentials, schedule and retention not enabled or accepted**. The first manual encrypted backup/local restore and its private Google Drive upload are complete. The successful November 4 manual archive stays outside the worker's destination and deletion namespace. Do not repeat that drill or troubleshoot its already successful manual SSH prompts as a pending gate.
+Status: **implementation merged; owner setup in progress; scheduled runs and retention not yet accepted**. On November 6 the owner created the dedicated GPG recovery key, installed rclone 1.75.2 on Windows and created the Google Desktop OAuth client. Google OAuth publishing is blocked until the Branding URLs are provided; the public pages in this change still require owner merge and Pages enablement. Live worker configuration, scheduled execution, a new archive's isolated restore and freshness monitoring remain pending. The first manual encrypted backup/local restore and its private Google Drive upload are complete. The successful November 4 manual archive stays outside the worker's destination and deletion namespace. Do not repeat that drill or troubleshoot its already successful manual SSH prompts as a pending gate.
 
 The owner reports intermittent power, with a usual local availability window of 11 PM–4 PM. That is useful for operator setup but does not ensure a Windows task can run every day. This design runs a short-lived **separate staging Railway cron service**, independently of the computer. It uses the private database network with verified TLS and a new SELECT-only role, encrypts with a public recovery key, uploads to its own private Drive folder, reads the encrypted file back to check SHA256, applies scoped retention when enabled and sends a success heartbeat only afterward. No SSH key or GPG decryption passphrase is stored in the worker.
 
@@ -28,7 +28,7 @@ The owner reports intermittent power, with a usual local availability window of 
 
 The owner uploaded `colvin-staging-20261104T131728Z-o0rZfPp6` beneath `Colvin Backups/staging` in the connected private Google Drive account. Metadata inspection found exactly three non-empty files: the 102,509-byte encrypted archive, 81-byte SHA256SUMS and 861-byte restore report. The folder and each file had only the owner permission. No encrypted archive was downloaded or opened by the assistant. This verifies presence and privacy, not a new restore of the Drive copy or unattended freshness.
 
-## Operator setup — not yet performed
+## Operator setup — in progress
 
 Perform the phases in order after the implementation's three CI checks pass and the new-service cost/design is reviewed. Do not paste credentials, OAuth tokens, private keys or backup files into ChatGPT, GitHub or CI logs. All new variables below belong only to the new staging worker. Keep current Postgres/app credentials, application references, TLS settings and production services unchanged.
 
