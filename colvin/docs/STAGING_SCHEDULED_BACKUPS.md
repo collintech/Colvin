@@ -1,6 +1,6 @@
 # Gate 8B — Scheduled encrypted staging backups
 
-Status: **implementation prepared; new service, credentials, schedule and retention not enabled or accepted**. The first manual encrypted backup/local restore and its private Google Drive upload are complete. The successful November 4 manual archive stays outside the worker's destination and deletion namespace. Do not repeat that drill or troubleshoot its already successful manual SSH prompts as a pending gate.
+Status: **implementation merged; owner setup in progress; scheduled runs and retention not yet accepted**. On November 6 the owner created the dedicated GPG recovery key, installed rclone 1.75.2 on Windows and created the Google Desktop OAuth client. Google OAuth publishing is blocked until the Branding URLs are provided; the public pages in this change still require owner merge and Pages enablement. Live worker configuration, scheduled execution, a new archive's isolated restore and freshness monitoring remain pending. The first manual encrypted backup/local restore and its private Google Drive upload are complete. The successful November 4 manual archive stays outside the worker's destination and deletion namespace. Do not repeat that drill or troubleshoot its already successful manual SSH prompts as a pending gate.
 
 The owner reports intermittent power, with a usual local availability window of 11 PM–4 PM. That is useful for operator setup but does not ensure a Windows task can run every day. This design runs a short-lived **separate staging Railway cron service**, independently of the computer. It uses the private database network with verified TLS and a new SELECT-only role, encrypts with a public recovery key, uploads to its own private Drive folder, reads the encrypted file back to check SHA256, applies scoped retention when enabled and sends a success heartbeat only afterward. No SSH key or GPG decryption passphrase is stored in the worker.
 
@@ -28,7 +28,7 @@ The owner reports intermittent power, with a usual local availability window of 
 
 The owner uploaded `colvin-staging-20261104T131728Z-o0rZfPp6` beneath `Colvin Backups/staging` in the connected private Google Drive account. Metadata inspection found exactly three non-empty files: the 102,509-byte encrypted archive, 81-byte SHA256SUMS and 861-byte restore report. The folder and each file had only the owner permission. No encrypted archive was downloaded or opened by the assistant. This verifies presence and privacy, not a new restore of the Drive copy or unattended freshness.
 
-## Operator setup — not yet performed
+## Operator setup — in progress
 
 Perform the phases in order after the implementation's three CI checks pass and the new-service cost/design is reviewed. Do not paste credentials, OAuth tokens, private keys or backup files into ChatGPT, GitHub or CI logs. All new variables below belong only to the new staging worker. Keep current Postgres/app credentials, application references, TLS settings and production services unchanged.
 
@@ -49,6 +49,29 @@ The setup requires the public-key text base64-encoded as one line, without alter
 ### 2. Prepare narrowly scoped Google Drive authentication on the Windows computer
 
 Use [rclone's official download](https://rclone.org/downloads/) and [Drive setup](https://rclone.org/drive/#making-your-own-client-id). Use your own Google OAuth **Desktop app** client with Google Drive API enabled; rclone's shared client is being retired during 2026. Request **`drive.file` only**, which limits the app to files/folders it creates. Do not grant full-account `drive` scope. A consumer Drive service account is not substituted for this owner OAuth flow.
+
+#### Complete Google OAuth Branding before authorization
+
+The owner has created the Desktop client. Google currently disables **Audience → Publish app** until the Branding configuration is complete. The repository's root `/docs` folder contains a public overview, privacy policy and terms for this backup utility. These pages describe its actual purpose, limited Drive access and provider/data practices; they contain no credentials or archive content. They are separate from the application documentation in `/colvin/docs`.
+
+After this documentation change passes CI and the owner merges it, publish the static pages using **repository Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: main → Folder: /docs → Save**. GitHub Pages is available free for this public repository. Wait for **pages build and deployment** to succeed, then open each page while signed out to verify that its content loads. Merely merging these files does not enable Pages. No Railway service or custom domain is needed for this documentation site.
+
+For the default GitHub Pages address, complete **Google Auth Platform → Branding** with these exact values only after the pages are live:
+
+| Branding field                  | Value                                              |
+| ------------------------------- | -------------------------------------------------- |
+| Application home page           | `https://collintech.github.io/Colvin/`             |
+| Application privacy policy link | `https://collintech.github.io/Colvin/privacy.html` |
+| Application Terms of Service    | `https://collintech.github.io/Colvin/terms.html`   |
+| Authorised domains              | `collintech.github.io`                             |
+
+Keep the existing app name, support email and developer contact email. The logo is optional; adding one can introduce brand-verification requirements. Save, return to **Audience**, choose **Publish app**, confirm and verify **In production** before granting Drive access through rclone. This is the Google OAuth publishing status for the private backup utility, separate from Railway's staging environment. Personal-use apps can qualify for Google's verification exception; this is not a promise that Google's UI will never request additional information.
+
+If Google requires domain ownership or brand verification, pause and capture the exact requirement before continuing. Search Console URL-prefix verification of a project page does not establish DNS ownership of its hostname; Google's current OAuth domain-verification guidance can require a DNS-verified Domain property. Do not assume that an HTML meta tag satisfies that separate requirement. The personal-use exception and rclone's GitHub Pages route should be evaluated against the actual message. Do not register the shared `github.io` domain, invent URLs, add full-Drive scopes or buy a domain just to bypass a validation message. If Pages reports a different live hostname, use that actual host and its page URLs after checking ownership instead of copying this table.
+
+References: [rclone's current client/publishing instructions](https://rclone.org/drive/#making-your-own-client-id), [Google OAuth Branding](https://support.google.com/cloud/answer/15549049), [personal-use verification exceptions](https://support.google.com/cloud/answer/13464323), [OAuth domain verification](https://support.google.com/cloud/answer/13804266), [GitHub Pages publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
+
+#### Authorize rclone on the Windows computer
 
 Keep the dedicated rclone config in a private owner-controlled directory, outside the repository and backup-upload folder. On Windows verify that its NTFS permissions exclude other ordinary users. Run `rclone --config PATH_TO_PRIVATE_CONFIG config`, choose a new remote named **`colvin_backup`**, storage type **`drive`**, your client ID/secret and scope **`drive.file`**. Use the browser authorization flow on the Windows computer and select the intended backup Google account. This is a personal Drive, not a Shared Drive. Use an OAuth app publishing status suitable for continuing use; Google's **Testing** grants for these scopes expire after seven days. Follow the current linked setup screens rather than guessing numeric menu positions.
 
