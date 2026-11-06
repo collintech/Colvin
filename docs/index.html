@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Purpose and Google Drive access for Colvin Scheduled Backups."
+    />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self'; base-uri 'none'; form-action 'none'"
+    />
+    <title>Colvin Scheduled Backups</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header>
+      <a class="brand" href="./">Colvin Scheduled Backups</a>
+      <nav aria-label="Main navigation">
+        <a href="./" aria-current="page">Overview</a>
+        <a href="privacy.html">Privacy policy</a>
+        <a href="terms.html">Terms of service</a>
+      </nav>
+    </header>
+    <main id="main">
+      <p class="eyebrow">Owner-operated staging utility</p>
+      <h1>Encrypted backups for Colvin staging.</h1>
+      <p>
+        Colvin Scheduled Backups is a private operational utility maintained by
+        <a href="https://github.com/collintech">collintech</a> for the Colvin vehicle-intelligence
+        project. It is designed to copy encrypted PostgreSQL staging backups to the operator's own
+        Google Drive account on a schedule.
+      </p>
+      <aside class="notice" aria-label="Setup status">
+        <p>
+          The scheduled service is being configured. Unattended backup and recovery acceptance is
+          pending a successful cloud run, an isolated restore and monitoring validation.
+        </p>
+      </aside>
+      <h2>What the utility does</h2>
+      <ul>
+        <li>Reads a consistent database snapshot through a dedicated read-only connection.</li>
+        <li>Encrypts the export with the operator's public recovery key before uploading it.</li>
+        <li>
+          Uploads the encrypted archive, checksum and completion receipt to a private Drive folder.
+        </li>
+        <li>
+          Reads the encrypted archive back to verify its checksum and records backup completion.
+        </li>
+        <li>
+          Supports retention of completed snapshots and a success check-in to the backup monitor.
+        </li>
+      </ul>
+      <h2>Why Google Drive access is requested</h2>
+      <p>
+        The utility requests <code>https://www.googleapis.com/auth/drive.file</code> to create and
+        manage its backup files and folders. This scope limits access to files created by the app or
+        explicitly authorized for it. The worker is configured to use a dedicated scheduled-backup
+        folder. Google authorization is granted by the operator through rclone on the operator's
+        computer.
+      </p>
+      <p>
+        Railway hosts the scheduled worker; Google Drive stores the encrypted outputs. The private
+        recovery key and its passphrase stay under the operator's control for local recovery.
+      </p>
+      <h2>Data practices and support</h2>
+      <p>
+        Read the <a href="privacy.html">privacy policy</a> for access, storage, retention and
+        revocation details, and the <a href="terms.html">terms of service</a> for authorized use.
+        General questions can be raised in the
+        <a href="https://github.com/collintech/Colvin/issues">Colvin repository</a>. Keep
+        credentials, recovery material and database archives out of public issues.
+      </p>
+    </main>
+    <footer>Maintained by collintech for Colvin staging operations.</footer>
+  </body>
+</html>

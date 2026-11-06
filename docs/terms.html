@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Terms of service for the Colvin Scheduled Backups utility." />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self'; base-uri 'none'; form-action 'none'"
+    />
+    <title>Terms of service | Colvin Scheduled Backups</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header>
+      <a class="brand" href="./">Colvin Scheduled Backups</a>
+      <nav aria-label="Main navigation">
+        <a href="./">Overview</a>
+        <a href="privacy.html">Privacy policy</a>
+        <a href="terms.html" aria-current="page">Terms of service</a>
+      </nav>
+    </header>
+    <main id="main">
+      <p class="eyebrow">Authorized operations</p>
+      <h1>Terms of service</h1>
+      <p class="updated">Last updated: November 6, 2026</p>
+      <h2>Purpose and authorized use</h2>
+      <p>
+        Colvin Scheduled Backups is maintained by
+        <a href="https://github.com/collintech">collintech</a> for authorized backup and recovery
+        operations on Colvin staging data. Use is limited to an operator who controls, or has
+        permission to access, the source database and destination Google Drive account.
+      </p>
+      <h2>Operator responsibilities</h2>
+      <p>
+        The operator is responsible for authorizing the intended account, maintaining an owner-only
+        destination, protecting credentials and recovery material, monitoring backup freshness and
+        reviewing retention settings. The private recovery key must remain available for as long as
+        retained archives require it.
+      </p>
+      <h2>Backup and recovery limits</h2>
+      <p>
+        A successful encrypted upload and checksum comparison establish transfer integrity. Recovery
+        must also be tested by restoring an archive in an isolated environment. Schedules can be
+        delayed or interrupted by service outages, expired or revoked access, storage limits and
+        other operational failures. The utility does not guarantee uninterrupted operation or
+        recovery of every change. The operator remains responsible for additional copies and
+        recovery testing appropriate to the data.
+      </p>
+      <h2>Retention and stopping the utility</h2>
+      <p>
+        Enabling automatic retention permits removal of expired, recognized backups within the
+        configured scheduled-backup folder. The operator should review candidates before enabling
+        deletion. The worker can be disabled, its Google authorization revoked and its credentials
+        removed at any time. Stored archives require separate deletion when they are no longer
+        needed.
+      </p>
+      <h2>Third-party services and privacy</h2>
+      <p>
+        Google Drive, Railway, Better Stack and GitHub provide services used by this utility or
+        these information pages. Their applicable terms also govern use of their services. The
+        utility's data practices are described in its <a href="privacy.html">privacy policy</a>.
+      </p>
+      <h2>Contact and changes</h2>
+      <p>
+        General questions can be raised in the
+        <a href="https://github.com/collintech/Colvin/issues">Colvin repository</a>. Keep private
+        data, credentials and recovery material out of public issues. These terms may be updated as
+        the utility changes; the current version and update date will remain available on this page.
+      </p>
+    </main>
+    <footer>Colvin Scheduled Backups · <a href="privacy.html">Privacy policy</a></footer>
+  </body>
+</html>

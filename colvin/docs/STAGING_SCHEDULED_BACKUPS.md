@@ -50,6 +50,29 @@ The setup requires the public-key text base64-encoded as one line, without alter
 
 Use [rclone's official download](https://rclone.org/downloads/) and [Drive setup](https://rclone.org/drive/#making-your-own-client-id). Use your own Google OAuth **Desktop app** client with Google Drive API enabled; rclone's shared client is being retired during 2026. Request **`drive.file` only**, which limits the app to files/folders it creates. Do not grant full-account `drive` scope. A consumer Drive service account is not substituted for this owner OAuth flow.
 
+#### Complete Google OAuth Branding before authorization
+
+The owner has created the Desktop client. Google currently disables **Audience → Publish app** until the Branding configuration is complete. The repository's root `/docs` folder contains a public overview, privacy policy and terms for this backup utility. These pages describe its actual purpose, limited Drive access and provider/data practices; they contain no credentials or archive content. They are separate from the application documentation in `/colvin/docs`.
+
+After this documentation change passes CI and the owner merges it, publish the static pages using **repository Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: main → Folder: /docs → Save**. GitHub Pages is available free for this public repository. Wait for **pages build and deployment** to succeed, then open each page while signed out to verify that its content loads. Merely merging these files does not enable Pages. No Railway service or custom domain is needed for this documentation site.
+
+For the default GitHub Pages address, complete **Google Auth Platform → Branding** with these exact values only after the pages are live:
+
+| Branding field                  | Value                                              |
+| ------------------------------- | -------------------------------------------------- |
+| Application home page           | `https://collintech.github.io/Colvin/`             |
+| Application privacy policy link | `https://collintech.github.io/Colvin/privacy.html` |
+| Application Terms of Service    | `https://collintech.github.io/Colvin/terms.html`   |
+| Authorised domains              | `collintech.github.io`                             |
+
+Keep the existing app name, support email and developer contact email. The logo is optional; adding one can introduce brand-verification requirements. Save, return to **Audience**, choose **Publish app**, confirm and verify **In production** before granting Drive access through rclone. This is the Google OAuth publishing status for the private backup utility, separate from Railway's staging environment. Personal-use apps can qualify for Google's verification exception; this is not a promise that Google's UI will never request additional information.
+
+If Google requires domain ownership or brand verification, pause and capture the exact requirement before continuing. Search Console URL-prefix verification of a project page does not establish DNS ownership of its hostname; Google's current OAuth domain-verification guidance can require a DNS-verified Domain property. Do not assume that an HTML meta tag satisfies that separate requirement. The personal-use exception and rclone's GitHub Pages route should be evaluated against the actual message. Do not register the shared `github.io` domain, invent URLs, add full-Drive scopes or buy a domain just to bypass a validation message. If Pages reports a different live hostname, use that actual host and its page URLs after checking ownership instead of copying this table.
+
+References: [rclone's current client/publishing instructions](https://rclone.org/drive/#making-your-own-client-id), [Google OAuth Branding](https://support.google.com/cloud/answer/15549049), [personal-use verification exceptions](https://support.google.com/cloud/answer/13464323), [OAuth domain verification](https://support.google.com/cloud/answer/13804266), [GitHub Pages publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
+
+#### Authorize rclone on the Windows computer
+
 Keep the dedicated rclone config in a private owner-controlled directory, outside the repository and backup-upload folder. On Windows verify that its NTFS permissions exclude other ordinary users. Run `rclone --config PATH_TO_PRIVATE_CONFIG config`, choose a new remote named **`colvin_backup`**, storage type **`drive`**, your client ID/secret and scope **`drive.file`**. Use the browser authorization flow on the Windows computer and select the intended backup Google account. This is a personal Drive, not a Shared Drive. Use an OAuth app publishing status suitable for continuing use; Google's **Testing** grants for these scopes expire after seven days. Follow the current linked setup screens rather than guessing numeric menu positions.
 
 The app cannot see folders made by the ChatGPT connector or browser under `drive.file`. Therefore create a **new app-owned folder**, for example `Colvin Scheduled Backups`, with this remote using `rclone --config PATH_TO_PRIVATE_CONFIG mkdir 'colvin_backup:Colvin Scheduled Backups'`. Find that new folder's ID in its Drive URL (the new folder is visible in the web interface), set **`root_folder_id`** to it in this dedicated config and leave its sharing owner-only. This is a separate scheduled namespace; do not point at the accepted manual archive folder or change that folder's sharing.

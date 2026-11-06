@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Privacy policy for the Colvin Scheduled Backups utility." />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self'; base-uri 'none'; form-action 'none'"
+    />
+    <title>Privacy policy | Colvin Scheduled Backups</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header>
+      <a class="brand" href="./">Colvin Scheduled Backups</a>
+      <nav aria-label="Main navigation">
+        <a href="./">Overview</a>
+        <a href="privacy.html" aria-current="page">Privacy policy</a>
+        <a href="terms.html">Terms of service</a>
+      </nav>
+    </header>
+    <main id="main">
+      <p class="eyebrow">Data practices</p>
+      <h1>Privacy policy</h1>
+      <p class="updated">Last updated: November 6, 2026</p>
+      <p>
+        This policy covers Colvin Scheduled Backups, the owner-operated utility maintained by
+        <a href="https://github.com/collintech">collintech</a> for Colvin staging operations. It
+        covers the backup utility and its Google Drive authorization. The scheduled deployment is
+        currently being configured and validated.
+      </p>
+      <h2>Information accessed and created</h2>
+      <p>
+        When enabled, the worker reads the Colvin staging database using a dedicated read-only role.
+        A backup can contain personal information stored in that database. The worker encrypts the
+        export with the operator's public recovery key before sending it to Google Drive.
+      </p>
+      <p>
+        Through Google's <code>drive.file</code> permission, the utility creates and manages its
+        backup folder, encrypted archives, checksums and completion receipts. It reads file content
+        and metadata as needed to verify uploads and manage completed backups. This permission
+        covers files created by the app or explicitly authorized for it. The worker restricts its
+        operations to its configured scheduled-backup folder.
+      </p>
+      <h2>How information is used</h2>
+      <p>
+        Google Drive data is used only to store, verify, identify and manage the operator's
+        encrypted staging backups. OAuth tokens authorize those operations. Operational records can
+        include timestamps, checksums, sizes, snapshot identifiers and source identifiers. A
+        monitoring check-in is sent only after the backup workflow succeeds.
+      </p>
+      <p>
+        Google user data is not sold, used for advertising, or used to train artificial-intelligence
+        models. Colvin Scheduled Backups' use and transfer of information received from Google APIs
+        adheres to the
+        <a href="https://developers.google.com/terms/api-services-user-data-policy">
+          Google API Services User Data Policy </a
+        >, including the Limited Use requirements.
+      </p>
+      <h2>Storage, access and service providers</h2>
+      <ul>
+        <li>Google Drive stores encrypted archives and their checksum and receipt files.</li>
+        <li>
+          Railway runs the worker and stores its configured database reader credential and Google
+          authorization configuration. The worker uses private temporary storage during each run.
+        </li>
+        <li>Better Stack receives backup success check-ins for freshness monitoring.</li>
+        <li>
+          The operator holds the private decryption key and its passphrase separately from the
+          worker. Access to the destination folder is intended to remain owner-only.
+        </li>
+      </ul>
+      <p>
+        These providers process information needed to deliver their respective services under their
+        own terms and privacy policies. The worker is designed to keep credentials and plaintext
+        database records out of its application logs.
+      </p>
+      <h2>Retention and deletion</h2>
+      <p>
+        Retention selects recent completed snapshots and additional weekly and monthly recovery
+        points. Automatic cleanup starts disabled and requires validation before it is enabled.
+        Cleanup is restricted to expired, recognized completed backups in the dedicated folder.
+        Earlier manual backups are kept in a separate location.
+      </p>
+      <p>
+        The operator can stop the worker and remove its backup files from Google Drive. Files in
+        provider trash, version history or provider-managed retention may require additional action
+        or time before permanent removal. Revoking authorization alone does not delete existing
+        archives.
+      </p>
+      <h2>Revoking Google access</h2>
+      <p>
+        The operator can revoke the utility's authorization in the Google Account
+        <a href="https://myaccount.google.com/connections">third-party connections settings</a> and
+        remove the authorization configuration from Railway and the local computer. Revocation stops
+        future authorized Drive operations and requires reauthorization before backups can resume.
+      </p>
+      <h2>This information website</h2>
+      <p>
+        These public pages are hosted by GitHub Pages. They include no analytics scripts, sign-in
+        forms or embedded third-party resources. GitHub may process ordinary website request
+        information under its own privacy statement.
+      </p>
+      <h2>Contact and changes</h2>
+      <p>
+        General questions about this utility or this policy can be directed to the maintainer
+        through the <a href="https://github.com/collintech/Colvin/issues">Colvin repository</a>.
+        Public issues must not include credentials, personal database records, archives or recovery
+        keys. Changes to these practices will be reflected here with an updated date.
+      </p>
+    </main>
+    <footer>Colvin Scheduled Backups · <a href="terms.html">Terms of service</a></footer>
+  </body>
+</html>
