@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import {
   configuration,
   parseDriveConfig,
@@ -48,6 +50,37 @@ test('cloud worker refuses wrong environment, privileged login, public database 
     ['BACKUP_GPG_PUBLIC_KEY_BASE64', b64('-----BEGIN PGP PRIVATE KEY BLOCK-----')],
   ])
     assert.throws(() => configuration({ ...validEnv(), [key]: value }));
+});
+
+test('worker logs all failing configuration fields without their values or parser errors', () => {
+  const worker = fileURLToPath(new URL('../../apps/backup-worker/worker.mjs', import.meta.url));
+  const env = {
+    ...validEnv(),
+    BACKUP_DATABASE_PASSWORD: 'fake-short-secret',
+    BACKUP_DB_SSL_CA_BASE64: 'fake-invalid-base64',
+    BACKUP_DRIVE_CONFIG_BASE64: b64(
+      profile.replace(/token = .*/, 'token = {"access_token":"fake-oauth-secret",'),
+    ),
+    BACKUP_HEARTBEAT_URL: 'invalid://fake-heartbeat-secret %',
+  };
+  delete env.BACKUP_DATABASE_PORT;
+
+  const result = spawnSync(process.execPath, [worker], { env, encoding: 'utf8', timeout: 5000 });
+  assert.ifError(result.error);
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, '');
+  assert.deepEqual(JSON.parse(result.stderr), {
+    passed: false,
+    code: 'BACKUP_WORKER_FAILED',
+    stage: 'configuration',
+    issues: [
+      { field: 'BACKUP_DATABASE_PORT', reason: 'missing' },
+      { field: 'BACKUP_DATABASE_PASSWORD', reason: 'password_too_short' },
+      { field: 'BACKUP_DB_SSL_CA_BASE64', reason: 'invalid_base64' },
+      { field: 'BACKUP_DRIVE_CONFIG_BASE64', reason: 'invalid_drive_config' },
+      { field: 'BACKUP_HEARTBEAT_URL', reason: 'invalid_url' },
+    ],
+  });
 });
 
 test('Drive config refuses full-account scopes, alternate endpoints and another profile', () => {
