@@ -1,0 +1,15 @@
+**
+!colvin/
+!colvin/apps/
+!colvin/apps/backup-worker/
+!colvin/apps/backup-worker/**
+!colvin/database/
+!colvin/database/migrations/
+!colvin/database/migrations/**
+!colvin/scripts/
+!colvin/scripts/backup/
+!colvin/scripts/backup/**
+**/.env*
+**/*.conf
+**/*.pem
+**/*.gpg

@@ -3,6 +3,7 @@
 set -euo pipefail
 umask 077
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+repo_dir=$(cd -- "$script_dir/../../.." && pwd)
 tools="$script_dir/backup-tools.mjs"
 tmp_dir=$(mktemp -d)
 fixture=''
@@ -30,7 +31,7 @@ printf 'subjectAltName=DNS:colvin-backup-fixture\n' >"$tmp_dir/extensions"
 openssl x509 -req -in "$tmp_dir/server.csr" -CA "$tmp_dir/server/ca.crt" -CAkey "$tmp_dir/ca.key" -CAcreateserial -out "$tmp_dir/server/server.crt" -days 1 -extfile "$tmp_dir/extensions" >/dev/null 2>&1
 openssl req -x509 -newkey rsa:2048 -nodes -keyout "$tmp_dir/wrong.key" -out "$tmp_dir/server/wrong-ca.crt" -days 1 -subj '/CN=Wrong CI CA' >/dev/null 2>&1
 chmod 644 "$tmp_dir/server/"*.crt
-docker build -q -f apps/backup-worker/Dockerfile -t colvin-backup-ci . >/dev/null
+docker build -q -f "$repo_dir/Dockerfile.backup-worker" -t colvin-backup-ci "$repo_dir" >/dev/null
 docker run --rm --user root --entrypoint bash -v "$tmp_dir/server:/certs" colvin-backup-ci -c 'chown postgres:postgres /certs/server.key; chmod 600 /certs/server.key'
 docker network create --internal "$network" >/dev/null
 fixture=$(docker run --detach --rm --network "$network" --network-alias colvin-backup-fixture --network-alias wrong-host \
