@@ -63,57 +63,144 @@ export function parseDriveConfig(text) {
   return values;
 }
 
+class ConfigurationError extends Error {
+  constructor(issues) {
+    super('Backup worker configuration is invalid');
+    this.issues = issues;
+  }
+}
+
 export function configuration(env) {
-  assert.equal(env.BACKUP_WORKER_ENABLED, 'true');
-  assert.equal(env.RAILWAY_PROJECT_ID, source.project);
-  assert.equal(env.RAILWAY_ENVIRONMENT_ID, source.environment);
-  assert.match(env.BACKUP_WORKER_SERVICE_ID, uuid);
-  assert.equal(env.RAILWAY_SERVICE_ID, env.BACKUP_WORKER_SERVICE_ID);
-  assert.notEqual(env.RAILWAY_SERVICE_ID, source.service);
-  assert.match(env.BACKUP_DATABASE_HOST, /^[a-z0-9-]+\.railway\.internal$/);
-  assert.match(env.BACKUP_DATABASE_PORT, /^\d{1,5}$/);
-  assert.ok(Number(env.BACKUP_DATABASE_PORT) > 0 && Number(env.BACKUP_DATABASE_PORT) <= 65535);
-  assert.match(env.BACKUP_DATABASE_NAME, /^[A-Za-z0-9_-]{1,63}$/);
-  assert.equal(env.BACKUP_DATABASE_USER, 'colvin_backup_reader');
-  assert.ok(
+  const issues = [];
+  const invalid = (field, reason) => {
+    // Report only fixed field names and reason codes. Never forward values or parser errors.
+    issues.push({ field, reason: env[field] == null || env[field] === '' ? 'missing' : reason });
+  };
+  const check = (field, condition, reason) => {
+    if (!condition) invalid(field, reason);
+    return Boolean(condition);
+  };
+  const matches = (field, pattern, reason) =>
+    check(field, typeof env[field] === 'string' && pattern.test(env[field]), reason);
+  const read = (field, reason, parse) => {
+    try {
+      return parse(env[field]);
+    } catch {
+      invalid(field, reason);
+      return undefined;
+    }
+  };
+  const decoded = (field, limit) => read(field, 'invalid_base64', (value) => decode(value, limit));
+
+  check('BACKUP_WORKER_ENABLED', env.BACKUP_WORKER_ENABLED === 'true', 'expected_true');
+  check('RAILWAY_PROJECT_ID', env.RAILWAY_PROJECT_ID === source.project, 'wrong_project');
+  check(
+    'RAILWAY_ENVIRONMENT_ID',
+    env.RAILWAY_ENVIRONMENT_ID === source.environment,
+    'wrong_environment',
+  );
+  const validWorkerId = matches('BACKUP_WORKER_SERVICE_ID', uuid, 'expected_uuid');
+  if (validWorkerId) {
+    check(
+      'RAILWAY_SERVICE_ID',
+      env.RAILWAY_SERVICE_ID === env.BACKUP_WORKER_SERVICE_ID &&
+        env.RAILWAY_SERVICE_ID !== source.service,
+      'wrong_service',
+    );
+  }
+  matches('BACKUP_DATABASE_HOST', /^[a-z0-9-]+\.railway\.internal$/, 'expected_private_hostname');
+  const port = env.BACKUP_DATABASE_PORT;
+  check(
+    'BACKUP_DATABASE_PORT',
+    typeof port === 'string' && /^\d{1,5}$/.test(port) && Number(port) > 0 && Number(port) <= 65535,
+    'expected_tcp_port',
+  );
+  matches('BACKUP_DATABASE_NAME', /^[A-Za-z0-9_-]{1,63}$/, 'invalid_database_name');
+  check(
+    'BACKUP_DATABASE_USER',
+    env.BACKUP_DATABASE_USER === 'colvin_backup_reader',
+    'expected_backup_reader',
+  );
+  check(
+    'BACKUP_DATABASE_PASSWORD',
     typeof env.BACKUP_DATABASE_PASSWORD === 'string' && env.BACKUP_DATABASE_PASSWORD.length >= 24,
+    'password_too_short',
   );
-  const ca = decode(env.BACKUP_DB_SSL_CA_BASE64, 65536);
-  assert.ok(
-    ca.includes('-----BEGIN CERTIFICATE-----') &&
-      ca.includes('-----END CERTIFICATE-----') &&
-      !ca.includes('PRIVATE KEY'),
+
+  const ca = decoded('BACKUP_DB_SSL_CA_BASE64', 65536);
+  if (ca !== undefined) {
+    check(
+      'BACKUP_DB_SSL_CA_BASE64',
+      ca.includes('-----BEGIN CERTIFICATE-----') &&
+        ca.includes('-----END CERTIFICATE-----') &&
+        !ca.includes('PRIVATE KEY'),
+      'expected_certificate',
+    );
+  }
+  const publicKey = decoded('BACKUP_GPG_PUBLIC_KEY_BASE64', 32768);
+  if (publicKey !== undefined) {
+    check(
+      'BACKUP_GPG_PUBLIC_KEY_BASE64',
+      publicKey.startsWith('-----BEGIN PGP PUBLIC KEY BLOCK-----') &&
+        !publicKey.includes('PRIVATE KEY'),
+      'expected_public_key',
+    );
+  }
+  matches(
+    'BACKUP_GPG_FINGERPRINT',
+    /^(?:[A-F0-9]{40}|[A-F0-9]{64})$/,
+    'expected_uppercase_fingerprint',
   );
-  const publicKey = decode(env.BACKUP_GPG_PUBLIC_KEY_BASE64, 32768);
-  assert.ok(
-    publicKey.startsWith('-----BEGIN PGP PUBLIC KEY BLOCK-----') &&
-      !publicKey.includes('PRIVATE KEY'),
+  const driveConfig = decoded('BACKUP_DRIVE_CONFIG_BASE64', 16384);
+  const drive =
+    driveConfig === undefined
+      ? undefined
+      : read('BACKUP_DRIVE_CONFIG_BASE64', 'invalid_drive_config', () =>
+          parseDriveConfig(driveConfig),
+        );
+  const validFolderId = matches('BACKUP_DRIVE_FOLDER_ID', driveId, 'invalid_folder_id');
+  if (validFolderId && drive) {
+    // The existing manually uploaded archive is never a worker destination.
+    if (
+      check(
+        'BACKUP_DRIVE_FOLDER_ID',
+        drive.root_folder_id === env.BACKUP_DRIVE_FOLDER_ID,
+        'folder_mismatch',
+      )
+    ) {
+      check(
+        'BACKUP_DRIVE_FOLDER_ID',
+        ![
+          '1wPypsf8eeW4Cw42XJh-VGyv-f1Y4B7d4',
+          '1viVdfVSXhmR_0j2fPbV0_kGG39UtJTzi',
+          '1AIr6Vv1_ZxawEfuLH3tX9i9fMfY7wk2G',
+        ].includes(drive.root_folder_id),
+        'manual_archive_folder',
+      );
+    }
+  }
+  const heartbeat = read('BACKUP_HEARTBEAT_URL', 'invalid_url', (value) => new URL(value));
+  if (heartbeat) {
+    check(
+      'BACKUP_HEARTBEAT_URL',
+      heartbeat.protocol === 'https:' &&
+        ['incidents.betterstack.com', 'uptime.betterstack.com'].includes(heartbeat.hostname) &&
+        !heartbeat.port &&
+        !heartbeat.username &&
+        !heartbeat.password &&
+        !heartbeat.search &&
+        !heartbeat.hash &&
+        /^\/api\/v1\/heartbeat\/[A-Za-z0-9_-]+$/.test(heartbeat.pathname),
+      'expected_better_stack_heartbeat_url',
+    );
+  }
+  check(
+    'BACKUP_RETENTION_APPLY',
+    ['false', 'true'].includes(env.BACKUP_RETENTION_APPLY ?? 'false'),
+    'expected_boolean',
   );
-  assert.match(env.BACKUP_GPG_FINGERPRINT, /^(?:[A-F0-9]{40}|[A-F0-9]{64})$/);
-  const driveConfig = decode(env.BACKUP_DRIVE_CONFIG_BASE64, 16384);
-  const drive = parseDriveConfig(driveConfig);
-  assert.match(env.BACKUP_DRIVE_FOLDER_ID, driveId);
-  assert.equal(drive.root_folder_id, env.BACKUP_DRIVE_FOLDER_ID);
-  // The existing manually uploaded archive is never a worker destination.
-  assert.ok(
-    ![
-      '1wPypsf8eeW4Cw42XJh-VGyv-f1Y4B7d4',
-      '1viVdfVSXhmR_0j2fPbV0_kGG39UtJTzi',
-      '1AIr6Vv1_ZxawEfuLH3tX9i9fMfY7wk2G',
-    ].includes(drive.root_folder_id),
-  );
-  const heartbeat = new URL(env.BACKUP_HEARTBEAT_URL);
-  assert.equal(heartbeat.protocol, 'https:');
-  assert.ok(['incidents.betterstack.com', 'uptime.betterstack.com'].includes(heartbeat.hostname));
-  assert.ok(
-    !heartbeat.port &&
-      !heartbeat.username &&
-      !heartbeat.password &&
-      !heartbeat.search &&
-      !heartbeat.hash,
-  );
-  assert.match(heartbeat.pathname, /^\/api\/v1\/heartbeat\/[A-Za-z0-9_-]+$/);
-  assert.ok(['false', 'true'].includes(env.BACKUP_RETENTION_APPLY ?? 'false'));
+  if (issues.length) throw new ConfigurationError(issues);
+
   return {
     ca,
     publicKey,
@@ -482,8 +569,11 @@ export async function run(env = process.env) {
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   try {
     console.log(JSON.stringify(await run()));
-  } catch {
-    console.error(JSON.stringify({ passed: false, code: 'BACKUP_WORKER_FAILED', stage }));
+  } catch (error) {
+    const issues = error instanceof ConfigurationError ? { issues: error.issues } : {};
+    console.error(
+      JSON.stringify({ passed: false, code: 'BACKUP_WORKER_FAILED', stage, ...issues }),
+    );
     process.exitCode = 1;
   }
 }
