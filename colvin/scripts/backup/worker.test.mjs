@@ -164,23 +164,41 @@ test('failed upload/readback never deletes old backups or sends a success heartb
   }
 });
 
-test('retention dry-run is the default and incomplete old folders are never deleted', async () => {
+test('retention dry run counts and previews only rechecked deletion candidates', async () => {
   const work = await fs.mkdtemp(path.join(os.tmpdir(), 'colvin-publish-test-'));
   try {
     const docs = new Map();
-    let deleted = 0,
-      beats = 0;
+    for (let day = 2; day < 31; day++) {
+      docs.set(`${name(day)}/receipt.json`, {
+        formatVersion: 1,
+        state: 'complete',
+        name: name(day),
+        origin: day === 2 ? { ...source, project: id } : source,
+        sha256: 'a'.repeat(64),
+        bytes: 1,
+      });
+    }
+    let readDay17 = false;
+    let beats = 0;
     const store = {
       checkPrivate: async () => {},
       put: async () => {},
       checkFile: async () => {},
       json: async (k, v) => docs.set(k, v),
       readJson: async (k) => {
-        if (!docs.has(k)) throw Error('incomplete');
+        if (k === `${name(17)}/receipt.json`) {
+          if (readDay17) throw new Error('receipt vanished before recheck');
+          readDay17 = true;
+        }
+        if (!docs.has(k)) throw new Error('missing receipt');
         return docs.get(k);
       },
-      names: async () => Array.from({ length: 31 }, (_, i) => name(i + 1)),
-      purge: async () => deleted++,
+      names: async () => [
+        ...Array.from({ length: 31 }, (_, i) => name(i + 1)),
+        'manual-copy',
+        `colvin-auto-20500101T001500Z-${id}`,
+      ],
+      purge: async () => assert.fail('dry run must not delete anything'),
     };
     const result = await publish({
       store,
@@ -190,10 +208,12 @@ test('retention dry-run is the default and incomplete old folders are never dele
       applyRetention: false,
       heartbeat: async () => beats++,
     });
-    assert.equal(deleted, 0);
     assert.equal(beats, 1);
-    assert.ok(result.unverifiedFolders > 0);
     assert.equal(result.retentionApplied, false);
+    assert.equal(result.retentionCandidates, 13);
+    assert.deepEqual(result.retentionCandidatePreview, [16, 15, 14, 13, 12].map(name));
+    assert.equal(result.unverifiedFolders, 3);
+    assert.equal(result.unmanagedFolders, 2);
   } finally {
     await fs.rm(work, { recursive: true, force: true });
   }
