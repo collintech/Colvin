@@ -12,6 +12,8 @@ try {
   const marker = `colvin-privacy-probe-${randomUUID()}`;
   const base = 'http://127.0.0.1:5173';
   const headers = {
+    'X-Request-Id': `${marker}-request-id`,
+    'X-Session-Context': `${marker}-custom-header`,
     Cookie: `__Host-colvin_refresh=${marker}-cookie`,
     Referer: `${base}/reset-password?token=${marker}-referrer`,
   };
@@ -30,7 +32,9 @@ try {
     signal: AbortSignal.timeout(5000),
   });
   assert.equal(response.status, 404);
-  await response.text();
+  const requestId = response.headers.get('x-request-id');
+  assert.match(requestId ?? '', /^[a-f0-9-]{36}$/);
+  assert.equal((await response.json()).requestId, requestId);
   let observed = false;
   for (let attempt = 0; attempt < 20; attempt++) {
     const { stdout, stderr } = await run(
@@ -42,12 +46,13 @@ try {
     assert.equal(
       logs.includes(marker),
       false,
-      'A synthetic query, cookie or referrer reached container logs',
+      'A synthetic query or header value reached container logs',
     );
     observed =
       logs.includes('"path":"/reset-password"') &&
       logs.includes('"path":"/verify-email"') &&
-      logs.includes('"url":"/api/v1/log-privacy-probe"');
+      logs.includes(`"upstream_request_id":"${requestId}"`) &&
+      logs.includes(`"req":{"id":"${requestId}","method":"GET","url":"/api/v1/log-privacy-probe"}`);
     if (observed) break;
     await delay(100);
   }

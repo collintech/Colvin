@@ -10,7 +10,7 @@ import { installTestRuntimeEnv } from './helpers/runtime-env.js';
 
 installTestRuntimeEnv();
 
-const { createLogger, serializeHttpRequest } = await import('../src/config/logger.js');
+const { createLogger, httpLogOptions } = await import('../src/config/logger.js');
 
 function captureLogger() {
   const records = [];
@@ -25,16 +25,17 @@ function captureLogger() {
   return { logger, records };
 }
 
-test('HTTP completion logs redact incoming and outgoing session credentials', async () => {
+test('HTTP logs omit arbitrary headers while preserving cookies and server request IDs', async () => {
   const { logger, records } = captureLogger();
   const app = express();
-  app.use(pinoHttp({ logger, genReqId: () => 'cookie-redaction-request' }));
-  app.get('/session-probe', (_req, res) => {
+  app.use(pinoHttp(httpLogOptions(logger)));
+  app.get('/session-probe', (req, res) => {
+    assert.equal(req.get('X-Session-Context'), 'synthetic-request-context');
     res.setHeader('Set-Cookie', [
       '__Host-colvin_refresh=synthetic-new-refresh; Secure; HttpOnly; SameSite=Lax; Path=/',
       'colvin_refresh=synthetic-legacy-refresh; HttpOnly; Path=/',
     ]);
-    res.setHeader('X-Request-Id', 'cookie-redaction-request');
+    res.setHeader('X-Response-Context', 'synthetic-response-context');
     res.json({ status: 'ok' });
   });
 
@@ -43,21 +44,19 @@ test('HTTP completion logs redact incoming and outgoing session credentials', as
     .set('Cookie', '__Host-colvin_refresh=synthetic-old-refresh')
     .set('Authorization', 'Bearer synthetic-access-token')
     .set('X-Internal-Api-Key', 'synthetic-internal-key')
+    .set('X-Session-Context', 'synthetic-request-context')
+    .set('X-Request-Id', 'synthetic-client-request-id')
     .expect(200, { status: 'ok' });
 
   assert.match(response.headers['set-cookie'][0], /synthetic-new-refresh/);
   assert.match(response.headers['set-cookie'][1], /synthetic-legacy-refresh/);
+  assert.equal(response.headers['x-response-context'], 'synthetic-response-context');
+  const requestId = response.headers['x-request-id'];
+  assert.match(requestId, /^[a-f0-9-]{36}$/);
   assert.equal(records.length, 1);
   const record = records[0];
-  assert.equal(record.req.headers.cookie, '[Redacted]');
-  assert.equal(record.req.headers.authorization, '[Redacted]');
-  assert.equal(record.req.headers['x-internal-api-key'], '[Redacted]');
-  assert.equal(record.res.headers['set-cookie'], '[Redacted]');
-  assert.equal(record.req.id, 'cookie-redaction-request');
-  assert.equal(record.req.method, 'GET');
-  assert.equal(record.req.url, '/session-probe');
-  assert.equal(record.res.statusCode, 200);
-  assert.equal(record.res.headers['x-request-id'], 'cookie-redaction-request');
+  assert.deepEqual(record.req, { id: requestId, method: 'GET', url: '/session-probe' });
+  assert.deepEqual(record.res, { statusCode: 200 });
   assert.equal(typeof record.responseTime, 'number');
   assert.equal(JSON.stringify(records).includes('synthetic-'), false);
 });
@@ -65,15 +64,15 @@ test('HTTP completion logs redact incoming and outgoing session credentials', as
 test('credential-free HTTP failures retain status and request correlation', async () => {
   const { logger, records } = captureLogger();
   const app = express();
-  app.use(pinoHttp({ logger, genReqId: () => 'failed-login-request' }));
+  app.use(pinoHttp(httpLogOptions(logger)));
   app.get('/session-probe', (_req, res) => {
     res.status(401).json({ error: 'Email or password is incorrect' });
   });
 
-  await request(app).get('/session-probe').expect(401);
+  const response = await request(app).get('/session-probe').expect(401);
 
   assert.equal(records.length, 1);
-  assert.equal(records[0].req.id, 'failed-login-request');
+  assert.equal(records[0].req.id, response.headers['x-request-id']);
   assert.equal(records[0].req.url, '/session-probe');
   assert.equal(records[0].res.statusCode, 401);
   assert.equal(typeof records[0].responseTime, 'number');
@@ -82,26 +81,20 @@ test('credential-free HTTP failures retain status and request correlation', asyn
 test('HTTP query strings and referrers stay out of logs while handlers receive the original request', async () => {
   const { logger, records } = captureLogger();
   const app = express();
-  app.use(
-    pinoHttp({
-      logger,
-      serializers: { req: serializeHttpRequest },
-      genReqId: () => 'query-redaction-request',
-    }),
-  );
+  app.use(pinoHttp(httpLogOptions(logger)));
   app.get('/link-probe', (req, res) => {
     assert.equal(req.query.token, 'synthetic-query-token');
     assert.match(req.get('referer'), /synthetic-referrer-token/);
     res.json({ status: 'ok' });
   });
-  await request(app)
+  const response = await request(app)
     .get('/link-probe?token=synthetic-query-token&source=email')
     .set('Referer', 'https://colvin.example.invalid/reset-password?token=synthetic-referrer-token')
     .expect(200, { status: 'ok' });
   assert.equal(records[0].req.url, '/link-probe');
   assert.equal(records[0].req.query, undefined);
-  assert.equal(records[0].req.headers.referer, '[Redacted]');
-  assert.equal(records[0].req.id, 'query-redaction-request');
+  assert.equal(records[0].req.headers, undefined);
+  assert.equal(records[0].req.id, response.headers['x-request-id']);
   assert.equal(records[0].res.statusCode, 200);
   assert.equal(JSON.stringify(records).includes('synthetic-'), false);
 });
