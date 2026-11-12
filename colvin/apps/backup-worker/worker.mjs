@@ -462,28 +462,34 @@ export async function publish({ store, artifact, name, work, applyRetention, hea
   assert.deepEqual(await store.readJson(`${name}/receipt.json`), receipt);
   const names = await store.names();
   assert.equal(new Set(names).size, names.length);
-  let unverified = 0;
+  let unverifiedFolders = 0;
+  let unmanagedFolders = 0;
   stage = 'retention';
   const complete = [];
   const now = new Date();
   for (const candidate of names) {
     const time = snapshotTime(candidate);
-    if (!time || time > now) continue;
+    if (!time || time > now) {
+      unmanagedFolders++;
+      continue;
+    }
     try {
       checkedReceipt(await store.readJson(`${candidate}/receipt.json`), candidate);
       complete.push(candidate);
     } catch {
-      unverified++;
+      unverifiedFolders++;
     }
   }
   const plan = retentionPlan(complete, name, now);
+  const candidates = [];
   for (const old of plan.remove) {
     try {
       checkedReceipt(await store.readJson(`${old}/receipt.json`), old);
     } catch {
-      unverified++;
+      unverifiedFolders++;
       continue;
     }
+    candidates.push(old);
     if (applyRetention) {
       await store.checkPrivate();
       await store.purge(old);
@@ -495,9 +501,10 @@ export async function publish({ store, artifact, name, work, applyRetention, hea
     passed: true,
     readbackSha256: true,
     retentionApplied: applyRetention,
-    retentionCandidates: plan.remove.length - unverified,
-    unverifiedFolders: unverified,
-    unmanagedFolders: names.length - complete.length - unverified,
+    retentionCandidates: candidates.length,
+    retentionCandidatePreview: candidates.slice(0, 5),
+    unverifiedFolders,
+    unmanagedFolders,
     run: name,
     bytes: artifact.bytes,
   };
