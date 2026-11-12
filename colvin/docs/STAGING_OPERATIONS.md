@@ -49,11 +49,17 @@ PR #12 passed Quality, Integration and Container Smoke and deployed successfully
 
 ## Authentication logs
 
-The gateway logger redacts incoming authorization, cookie and internal-API-key headers and outgoing `Set-Cookie` headers. Existing top-level password, password-hash and refresh-token redaction remains. HTTP status, route, request ID and response timing remain available for diagnosis.
+Gateway HTTP logs record the server-generated request ID, method, path without query, response status and timing. Request and response headers and bodies are omitted. Each proxied API request can be traced from Nginx's `upstream_request_id` to the gateway's `req.id` and the client's `X-Request-Id`. A caller-supplied ID is not used as the server's correlation ID. Separate application errors still retain bounded diagnostics, such as the email provider's failure code.
 
-Regression tests use synthetic credentials with actual Pino HTTP serializers. They verify that cookies reach the HTTP client unchanged while their values do not reach the captured log stream. Safe email-provider failure codes and request correlation remain visible.
+CI exercises the actual log serializers and correlates the two container logs using a synthetic request. Cookies and other headers continue to reach their normal destinations. After deployment, send an ordinary request to `/api/v1/status` and check that the gateway request ID matches the Nginx upstream request ID. The staging health response remains generic.
 
-This is a gateway-header logging fix. It does not rewrite historical logs or establish that all log sources are safe. Review Nginx access/error logs and account-action tokens in URLs before attaching external monitoring or a log drain. Share bounded diagnostics, not full headers, cookies, reset links, passwords or variable dumps. No credential rotation is part of this patch.
+This covers normal access and completion logs. Historical records and Nginx error logs are outside this change; error messages may include raw request context. Keep unfiltered proxy logs out of external monitoring and log drains. Share bounded diagnostics, not headers, account-action URLs or variable dumps.
+
+## General-user email before launch
+
+The existing Resend test sender is sufficient for the accepted staging test account. For general-user delivery, [verify a sending domain you control](https://resend.com/docs/dashboard/domains/introduction); the [default test sender](https://resend.com/docs/knowledge-base/403-error-resend-dev-domain) is restricted to the Resend account address. A dedicated authentication subdomain is suitable if an owned domain is available. Leave click and open tracking off for authentication mail.
+
+When ready, apply the verified `EMAIL_FROM` and a sending key scoped to that domain in staging. Keep `ACCOUNT_WEB_URL` pointing to the intended staging web origin. With a fresh test account whose inbox is not the Resend account address, verify actual receipt of both the verification and password-reset messages. Check that each link points directly to the staging site and carries a fragment token, complete both flows and confirm sign-in after reset. Record delivery and browser outcomes without storing the links or tokens. A verified domain or provider delivery status alone does not prove that both flows work.
 
 ## Password-manager account separation
 

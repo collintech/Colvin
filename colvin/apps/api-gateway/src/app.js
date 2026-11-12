@@ -1,5 +1,3 @@
-import crypto from 'node:crypto';
-
 import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
@@ -9,7 +7,7 @@ import hpp from 'hpp';
 import pinoHttp from 'pino-http';
 
 import { env } from './config/env.js';
-import { logger, serializeHttpRequest } from './config/logger.js';
+import { httpLogOptions, logger } from './config/logger.js';
 import { pool } from './database/postgres.js';
 import { createAvailabilityCheck, createAvailabilityHandler } from './health/availability.js';
 import { getReadiness } from './health/readiness.js';
@@ -22,17 +20,7 @@ export const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
 
-app.use(
-  pinoHttp({
-    logger,
-    serializers: { req: serializeHttpRequest },
-    genReqId: (req, res) => {
-      const id = req.headers['x-request-id'] || crypto.randomUUID();
-      res.setHeader('x-request-id', id);
-      return id;
-    },
-  }),
-);
+app.use(pinoHttp(httpLogOptions(logger)));
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'same-site' } }));
 app.use(

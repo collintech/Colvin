@@ -1,16 +1,26 @@
+import { randomUUID } from 'node:crypto';
+
 import pino from 'pino';
 
 import { env } from './env.js';
 
-// Allow only diagnostic request fields; query values and bodies are excluded.
-export function serializeHttpRequest(request) {
+// Request and response headers stay out of HTTP logs, including unknown headers.
+export function httpLogOptions(logger) {
   return {
-    id: request.id,
-    method: request.method,
-    url: request.url?.split(/[?#]/, 1)[0],
-    headers: request.headers,
-    remoteAddress: request.remoteAddress,
-    remotePort: request.remotePort,
+    logger,
+    serializers: {
+      req: (request) => ({
+        id: request.id,
+        method: request.method,
+        url: request.url?.split(/[?#]/, 1)[0],
+      }),
+      res: (response) => ({ statusCode: response.statusCode }),
+    },
+    genReqId: (_request, response) => {
+      const id = randomUUID();
+      response.setHeader('x-request-id', id);
+      return id;
+    },
   };
 }
 
