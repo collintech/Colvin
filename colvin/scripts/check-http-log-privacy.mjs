@@ -17,16 +17,48 @@ try {
     Cookie: `__Host-colvin_refresh=${marker}-cookie`,
     Referer: `${base}/reset-password?token=${marker}-referrer`,
   };
-  for (const path of ['/reset-password', '/verify-email']) {
+  const expectedCsp = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+  ];
+  const documentPaths = ['/login', '/reset-password', '/verify-email'];
+  let entryScript;
+  for (const path of documentPaths) {
     const response = await fetch(`${base}${path}?token=${marker}`, {
       headers,
       signal: AbortSignal.timeout(5000),
     });
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
-    assert.match(response.headers.get('cache-control') ?? '', /no-store/);
-    assert.match(await response.text(), /<meta name="referrer" content="no-referrer"/);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    const csp = (response.headers.get('content-security-policy') ?? '').split(/;\s*/);
+    for (const directive of expectedCsp) assert.ok(csp.includes(directive), directive);
+    const html = await response.text();
+    assert.match(html, /<meta name="referrer" content="no-referrer"\//);
+    entryScript ??= html.match(/<script[^>]+src="(\/assets\/[^"]+\.js)"/)?.[1];
   }
+  assert.ok(entryScript, 'The built app must load a local entry script');
+  const asset = await fetch(new URL(entryScript, base), { signal: AbortSignal.timeout(5000) });
+  assert.equal(asset.status, 200);
+  assert.equal(asset.headers.get('cache-control'), 'public, max-age=604800, immutable');
+  assert.equal(asset.headers.get('x-content-type-options'), 'nosniff');
+  await asset.body?.cancel();
+  const missing = await fetch(`${base}/assets/colvin-missing-asset.js`, {
+    signal: AbortSignal.timeout(5000),
+  });
+  assert.equal(missing.status, 404);
+  assert.equal(missing.headers.get('cache-control'), 'no-store');
+  await missing.body?.cancel();
+  const edge = await fetch(`${base}/healthz`, { signal: AbortSignal.timeout(5000) });
+  assert.equal(edge.status, 200);
+  assert.match(edge.headers.get('content-type') ?? '', /^text\/plain(?:;|$)/);
+  assert.equal(await edge.text(), 'ok\n');
   const response = await fetch(`${base}/api/v1/log-privacy-probe?token=${marker}`, {
     headers,
     signal: AbortSignal.timeout(5000),
