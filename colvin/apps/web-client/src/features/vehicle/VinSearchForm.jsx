@@ -10,6 +10,7 @@ export default function VinSearchForm({ onSearch, busy }) {
       <label>
         Vehicle identification number
         <input
+          name="vin"
           value={vin}
           onChange={(e) => setVin(e.target.value.toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, ''))}
           minLength="17"

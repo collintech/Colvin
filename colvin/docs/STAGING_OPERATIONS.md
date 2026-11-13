@@ -61,6 +61,8 @@ The container serves Colvin's HTML with an enforced Content Security Policy. The
 
 Container Smoke checks the built app's headers, asset delivery and API proxy. After a web-client rollout, open a fresh private window, sign in with a staging test account and run the usual VIN lookup. Check that the browser console shows no Content Security Policy violations. A live security-header check does not require sending another reset email.
 
+On November 13, the public staging frontend returned the enforced policy and the owner confirmed the VIN report loaded in a private Chrome window after PR #28. The reported console showed HTTP 401 responses from authentication and a separate form-field notice, with no Content Security Policy violation shown.
+
 ## General-user email before launch
 
 The existing Resend test sender is sufficient for the accepted staging test account. For general-user delivery, [verify a sending domain you control](https://resend.com/docs/dashboard/domains/introduction); the [default test sender](https://resend.com/docs/knowledge-base/403-error-resend-dev-domain) is restricted to the Resend account address. A dedicated authentication subdomain is suitable if an owned domain is available. Leave click and open tracking off for authentication mail.

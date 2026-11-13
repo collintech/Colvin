@@ -37,8 +37,6 @@ export default function ForgotPasswordPage() {
               id="reset-email"
               name="email"
               type="email"
-              autoCapitalize="none"
-              spellCheck={false}
               autoComplete="email"
               autoCapitalize="none"
               spellCheck={false}
