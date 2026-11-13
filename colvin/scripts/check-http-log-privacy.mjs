@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 
 // CI-only container probe; every credential-shaped value is synthetic.
 const run = promisify(execFile);
+let check = 'CI environment';
 try {
   assert.equal(process.env.CI, 'true');
   const marker = `colvin-privacy-probe-${randomUUID()}`;
@@ -17,16 +18,54 @@ try {
     Cookie: `__Host-colvin_refresh=${marker}-cookie`,
     Referer: `${base}/reset-password?token=${marker}-referrer`,
   };
-  for (const path of ['/reset-password', '/verify-email']) {
+  const expectedCsp = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+  ];
+  const documentPaths = ['/login', '/reset-password', '/verify-email'];
+  let entryScript;
+  for (const path of documentPaths) {
+    check = `document headers: ${path}`;
     const response = await fetch(`${base}${path}?token=${marker}`, {
       headers,
       signal: AbortSignal.timeout(5000),
     });
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
-    assert.match(response.headers.get('cache-control') ?? '', /no-store/);
-    assert.match(await response.text(), /<meta name="referrer" content="no-referrer"/);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    const csp = (response.headers.get('content-security-policy') ?? '').split(/;\s*/);
+    for (const directive of expectedCsp) assert.ok(csp.includes(directive), directive);
+    check = `document markup: ${path}`;
+    const html = await response.text();
+    assert.match(html, /<meta name="referrer" content="no-referrer"/);
+    entryScript ??= html.match(/<script[^>]+src="(\/assets\/[^"]+\.js)"/)?.[1];
   }
+  check = 'built asset';
+  assert.ok(entryScript, 'The built app must load a local entry script');
+  const asset = await fetch(new URL(entryScript, base), { signal: AbortSignal.timeout(5000) });
+  assert.equal(asset.status, 200);
+  assert.equal(asset.headers.get('cache-control'), 'public, max-age=604800, immutable');
+  assert.equal(asset.headers.get('x-content-type-options'), 'nosniff');
+  await asset.body?.cancel();
+  check = 'missing asset';
+  const missing = await fetch(`${base}/assets/colvin-missing-asset.js`, {
+    signal: AbortSignal.timeout(5000),
+  });
+  assert.equal(missing.status, 404);
+  assert.equal(missing.headers.get('cache-control'), 'no-store');
+  await missing.body?.cancel();
+  check = 'edge health response';
+  const edge = await fetch(`${base}/healthz`, { signal: AbortSignal.timeout(5000) });
+  assert.equal(edge.status, 200);
+  assert.match(edge.headers.get('content-type') ?? '', /^text\/plain(?:;|$)/);
+  assert.equal(await edge.text(), 'ok\n');
+  check = 'proxied response';
   const response = await fetch(`${base}/api/v1/log-privacy-probe?token=${marker}`, {
     headers,
     signal: AbortSignal.timeout(5000),
@@ -35,6 +74,7 @@ try {
   const requestId = response.headers.get('x-request-id');
   assert.match(requestId ?? '', /^[a-f0-9-]{36}$/);
   assert.equal((await response.json()).requestId, requestId);
+  check = 'container log privacy and correlation';
   let observed = false;
   for (let attempt = 0; attempt < 20; attempt++) {
     const { stdout, stderr } = await run(
@@ -57,8 +97,8 @@ try {
     await delay(100);
   }
   assert.equal(observed, true, 'Expected proxy and gateway completion logs were not observed');
-  process.stdout.write('HTTP log privacy check passed.\n');
+  process.stdout.write('Browser headers and HTTP log privacy checks passed.\n');
 } catch {
-  process.stderr.write('HTTP log privacy check failed; inspect CI container diagnostics.\n');
+  process.stderr.write(`Browser headers or HTTP log privacy check failed: ${check}.\n`);
   process.exitCode = 1;
 }

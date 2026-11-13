@@ -180,7 +180,6 @@ jobs:
           API_PORT=4000
           WEB_ORIGIN=http://localhost:5173
           ACCOUNT_WEB_URL=http://localhost:5173
-          VITE_API_BASE_URL=/api/v1
 
           POSTGRES_DB=colvin_ci
           POSTGRES_USER=colvin_ci
@@ -231,7 +230,7 @@ jobs:
       - name: Verify availability monitor endpoint
         run: node scripts/check-availability-monitor.mjs
 
-      - name: Verify HTTP log privacy
+      - name: Verify browser headers and HTTP log privacy
         run: node scripts/check-http-log-privacy.mjs
 
       - name: Show container state

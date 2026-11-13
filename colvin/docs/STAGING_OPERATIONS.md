@@ -55,6 +55,12 @@ CI exercises the actual log serializers and correlates the two container logs us
 
 This covers normal access and completion logs. Historical records and Nginx error logs are outside this change; error messages may include raw request context. Keep unfiltered proxy logs out of external monitoring and log drains. Share bounded diagnostics, not headers, account-action URLs or variable dumps.
 
+## Browser security headers
+
+The container serves Colvin's HTML with an enforced Content Security Policy. The browser can load the built app and call its API from the same origin. Inline scripts and styles, plugins, embedded frames and injected base URLs are blocked. Docker Compose uses the Nginx API proxy as staging does; standalone Vite development still uses its own configured API URL. The reset and verification pages retain `no-store` and `no-referrer`. Successful static assets retain their cache policy; missing assets are not cacheable.
+
+Container Smoke checks the built app's headers, asset delivery and API proxy. After a web-client rollout, open a fresh private window, sign in with a staging test account and run the usual VIN lookup. Check that the browser console shows no Content Security Policy violations. A live security-header check does not require sending another reset email.
+
 ## General-user email before launch
 
 The existing Resend test sender is sufficient for the accepted staging test account. For general-user delivery, [verify a sending domain you control](https://resend.com/docs/dashboard/domains/introduction); the [default test sender](https://resend.com/docs/knowledge-base/403-error-resend-dev-domain) is restricted to the Resend account address. A dedicated authentication subdomain is suitable if an owned domain is available. Leave click and open tracking off for authentication mail.
