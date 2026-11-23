@@ -35,6 +35,12 @@ const schema = z.object({
   AUTH_LOGIN_ACCOUNT_LIMIT: z.coerce.number().int().min(1).max(100).default(10),
   AUTH_LOGIN_IP_LIMIT: z.coerce.number().int().min(1).max(500).default(30),
   AUTH_LOGIN_WINDOW_SECONDS: z.coerce.number().int().min(60).max(86400).default(900),
+  BETA_REGISTRATION_INVITE_DIGESTS: z
+    .string()
+    .max(4096)
+    .regex(/^[a-f0-9]{64}(,[a-f0-9]{64})*$/)
+    .transform((value) => value.split(','))
+    .optional(),
   AUTH_REGISTER_IP_LIMIT: z.coerce.number().int().min(1).max(100).default(10),
   AUTH_REGISTER_WINDOW_SECONDS: z.coerce.number().int().min(60).max(86400).default(3600),
   AUTH_REFRESH_IP_LIMIT: z.coerce.number().int().min(1).max(1000).default(120),
@@ -58,6 +64,13 @@ if (!parsed.success) {
   process.exit(1);
 }
 const data = parsed.data;
+if (
+  data.BETA_REGISTRATION_INVITE_DIGESTS !== undefined &&
+  process.env.RAILWAY_ENVIRONMENT_NAME !== 'staging'
+) {
+  console.error('Beta registration invites may only be configured on Railway staging');
+  process.exit(1);
+}
 if (data.NODE_ENV === 'production') {
   const productionErrors = {};
   if (data.EMAIL_PROVIDER !== 'resend')

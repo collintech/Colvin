@@ -11,7 +11,8 @@ export default function RegisterPage() {
 
   const submit = async (values) => {
     try {
-      save(await registerRequest(values));
+      const { inviteCode, ...credentials } = values;
+      save(await registerRequest(inviteCode ? { ...credentials, inviteCode } : credentials));
       navigate('/');
     } catch (requestError) {
       setError(requestError.response?.data?.error?.message || 'Registration failed');

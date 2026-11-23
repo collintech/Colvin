@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { env } from '../config/env.js';
 import * as controller from '../controllers/auth.controller.js';
 import { authenticate } from '../middleware/authenticate.js';
 import {
@@ -17,6 +18,7 @@ import {
   distributedRefreshGuard,
   distributedRegisterGuard,
 } from '../security/auth-abuse.js';
+import { requireBetaInvite } from '../security/beta-invite.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import {
   changePasswordSchema,
@@ -35,6 +37,7 @@ router.post(
   registerLimiter,
   validate(registerSchema),
   distributedRegisterGuard,
+  requireBetaInvite(env.BETA_REGISTRATION_INVITE_DIGESTS),
   asyncHandler(controller.register),
 );
 router.post(
