@@ -19,7 +19,7 @@ const password = z
 const accountToken = z.string().min(32).max(256);
 
 export const registerSchema = z.object({
-  body: z.object({ email, password }).strict(),
+  body: z.object({ email, password, inviteCode: z.string().trim().max(128).optional() }).strict(),
 });
 
 export const loginSchema = z.object({

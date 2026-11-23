@@ -6,6 +6,7 @@ import PasswordInput from './PasswordInput.jsx';
 const schema = z.object({
   email: z.string().email(),
   password: z.string().min(12, 'Use at least 12 characters'),
+  inviteCode: z.string().trim().max(128).optional(),
 });
 export default function AuthForm({ label, onSubmit, serverError }) {
   const {
@@ -40,6 +41,19 @@ export default function AuthForm({ label, onSubmit, serverError }) {
         />
         <span id="auth-password-error">{errors.password?.message}</span>
       </div>
+      {label === 'Register' && (
+        <label htmlFor="auth-invite-code">
+          Invite code (if you received one)
+          <input
+            id="auth-invite-code"
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            maxLength={128}
+            {...register('inviteCode')}
+          />
+        </label>
+      )}
       {serverError && <p className="error">{serverError}</p>}
       <button disabled={isSubmitting}>{isSubmitting ? 'Please wait…' : label}</button>
     </form>
