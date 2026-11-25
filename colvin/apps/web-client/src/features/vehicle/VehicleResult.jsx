@@ -4,6 +4,17 @@ export default function VehicleResult({ report }) {
   const hasDetails = [v.modelYear, v.make, v.model, v.manufacturer, v.country, v.bodyClass].some(
     Boolean,
   );
+  const { engineCode, engineDisplacementCcm, trim } = v.attributes ?? {};
+  const specifications = [
+    ['Engine code', engineCode],
+    [
+      'Engine displacement',
+      typeof engineDisplacementCcm === 'string' && engineDisplacementCcm.trim()
+        ? `${engineDisplacementCcm} cc`
+        : null,
+    ],
+    ['Trim (provider value)', trim],
+  ].filter(([, value]) => typeof value === 'string' && value.trim());
   const hasModel = Boolean(v.make && v.model && v.modelYear);
   return (
     <section className="results">
@@ -50,6 +61,12 @@ export default function VehicleResult({ report }) {
             <dt>Body class</dt>
             <dd>{v.bodyClass || 'Unavailable'}</dd>
           </div>
+          {specifications.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
         </dl>
       </article>
       <article className="card">

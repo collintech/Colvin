@@ -24,7 +24,7 @@ func TestVincarioDecoderNormalizesResponseAndProvenance(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestPath = r.URL.Path
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"decode":[{"label":"Make","value":"Mercedes-Benz"},{"label":"Model","value":"E-Class"},{"label":"Model Year","value":"1996"},{"label":"Manufacturer","value":"Mercedes-Benz AG"},{"label":"Plant Country","value":"Germany"},{"label":"Body","value":"Sedan"},{"label":"Engine Type","value":"V8"},{"label":"Fuel Type - Primary","value":"Gasoline"},{"label":"Number of Doors","value":4},{"label":"Drive","value":"RWD"}]}`))
+		_, _ = w.Write([]byte(`{"decode":[{"label":"Make","value":"Mercedes-Benz"},{"label":"Model","value":"E-Class"},{"label":"Model Year","value":"1996"},{"label":"Manufacturer","value":"Mercedes-Benz AG"},{"label":"Plant Country","value":"Germany"},{"label":"Body","value":"Sedan"},{"label":"Engine Type","value":"V8"},{"label":"Engine code","value":"ABC123"},{"label":"Engine Displacement (ccm)","value":1800},{"label":"Trim","value":"EX01"},{"label":"Variant","value":"VAR01"},{"label":"Fuel Type - Primary","value":"Gasoline"},{"label":"Number of Doors","value":4},{"label":"Drive","value":"RWD"}]}`))
 	}))
 	defer srv.Close()
 
@@ -39,6 +39,12 @@ func TestVincarioDecoderNormalizesResponseAndProvenance(t *testing.T) {
 	if len(got.Sources) != 1 || got.Sources[0].Provider != "vincario" || got.Sources[0].Authoritative {
 		t.Fatalf("unexpected sources: %+v", got.Sources)
 	}
+	for field, want := range map[string]string{"engineCode": "ABC123", "engineDisplacementCcm": "1800", "trim": "EX01", "variant": "VAR01"} {
+		if got.Attributes[field] != want {
+			t.Errorf("attribute %s = %v, want %s", field, got.Attributes[field], want)
+		}
+	}
+
 	if got.Attributes["numberOfDoors"] != "4" || got.Attributes["drive"] != "RWD" {
 		t.Fatalf("unexpected attributes: %+v", got.Attributes)
 	}
