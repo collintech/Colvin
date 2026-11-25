@@ -132,6 +132,13 @@ func (d *VincarioDecoder) Decode(ctx context.Context, raw string) (Result, error
 		fields = append(fields, "engine")
 	}
 
+	engineCode := values["Engine Code"]
+	if engineCode == "" {
+		engineCode = values["Engine code"]
+	}
+	copyAttribute(attributes, "engineCode", engineCode)
+	copyAttribute(attributes, "engineDisplacementCcm", values["Engine Displacement (ccm)"])
+	copyAttribute(attributes, "trim", values["Trim"])
 	copyAttribute(attributes, "vehicleId", values["Vehicle ID"])
 	copyAttribute(attributes, "productType", values["Product Type"])
 	copyAttribute(attributes, "series", values["Series"])
