@@ -1,15 +1,43 @@
 export default function VehicleResult({ report }) {
   if (!report) return null;
   const v = report.vehicle;
+  const hasDetails = [v.modelYear, v.make, v.model, v.manufacturer, v.country, v.bodyClass].some(
+    Boolean,
+  );
+  const hasModel = Boolean(v.make && v.model && v.modelYear);
   return (
     <section className="results">
       <article className="card">
-        <h2>{[v.modelYear, v.make, v.model].filter(Boolean).join(' ') || 'Decoded vehicle'}</h2>
+        <h2>
+          {hasModel
+            ? [v.modelYear, v.make, v.model].join(' ')
+            : hasDetails
+              ? 'Partial vehicle identification'
+              : 'Vehicle details unavailable'}
+        </h2>
+        {!hasModel && (
+          <p>
+            {hasDetails
+              ? 'Some vehicle details could not be confirmed.'
+              : 'The available decoder data did not identify this vehicle.'}
+          </p>
+        )}
         <dl>
           <div>
             <dt>VIN</dt>
             <dd>{v.vin}</dd>
           </div>
+          {!hasModel &&
+            [
+              ['Make', v.make],
+              ['Model', v.model],
+              ['Model year', v.modelYear],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{value || 'Unavailable'}</dd>
+              </div>
+            ))}
           <div>
             <dt>Manufacturer</dt>
             <dd>{v.manufacturer || 'Unavailable'}</dd>
