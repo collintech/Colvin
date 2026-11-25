@@ -43,3 +43,16 @@ func TestDecodeRejectsInvalidVINs(t *testing.T) {
 		})
 	}
 }
+
+func TestUKToyotaPrefixReturnsOnlyManufacturerDetails(t *testing.T) {
+	got, err := Decode("SB1AA00A00A000001")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Make != "Toyota" || got.Manufacturer != "Toyota Motor Manufacturing UK Ltd" || got.Country != "United Kingdom" {
+		t.Fatalf("unexpected manufacturer details: %+v", got)
+	}
+	if got.Model != "" || got.ModelYear != nil || got.BodyClass != "" {
+		t.Fatalf("prefix alone must not infer model details: %+v", got)
+	}
+}
