@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -65,5 +66,29 @@ func TestHybridFallsBackWhenVincarioUnavailable(t *testing.T) {
 	}
 	if got.Make != "Honda" || len(got.Warnings) == 0 {
 		t.Fatalf("unexpected fallback: %+v", got)
+	}
+}
+
+type vincarioFailingTransport struct{}
+
+func (vincarioFailingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return nil, &url.Error{Op: "GET", URL: req.URL.String(), Err: context.DeadlineExceeded}
+}
+
+func TestVincarioTransportErrorDoesNotExposeSignedURL(t *testing.T) {
+	d := NewVincarioDecoder("https://example.test", "private-api-key", "private-secret", time.Second)
+	d.Client.Transport = vincarioFailingTransport{}
+	_, err := d.Decode(context.Background(), "SB1AA00A00A000001")
+	if err == nil || err.Error() != "vincario request failed" {
+		t.Fatal("expected a sanitized transport error")
+	}
+}
+
+func TestReplayVincarioResponseUsesSavedFields(t *testing.T) {
+	input := strings.NewReader(`{"decode":[{"label":"Model","value":"Avensis"},{"label":"Engine Code","value":"SYNTHETIC"},{"label":"Engine Displacement (ccm)","value":1800},{"label":"Trim","value":"EX01"}]}`)
+	got, err := ReplayVincarioResponse(input)
+	if err != nil || got.Model != "Avensis" || got.Attributes["engineCode"] != "SYNTHETIC" ||
+		got.Attributes["engineDisplacementCcm"] != "1800" || got.Attributes["trim"] != "EX01" {
+		t.Fatal("saved response did not normalize as expected")
 	}
 }
