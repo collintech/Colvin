@@ -44,7 +44,12 @@ func NewVincarioDecoder(baseURL, apiKey, secretKey string, timeout time.Duration
 		BaseURL:   strings.TrimRight(baseURL, "/"),
 		APIKey:    strings.TrimSpace(apiKey),
 		SecretKey: strings.TrimSpace(secretKey),
-		Client:    &http.Client{Timeout: timeout},
+		Client: &http.Client{
+			Timeout: timeout,
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		},
 	}
 }
 
@@ -67,23 +72,32 @@ func (d *VincarioDecoder) Decode(ctx context.Context, raw string) (Result, error
 	)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return Result{}, fmt.Errorf("vincario request construction failed: %w", err)
+		return Result{}, fmt.Errorf("vincario request construction failed")
 	}
 	req.Header.Set("Accept", "application/json")
 
 	res, err := d.Client.Do(req)
 	if err != nil {
-		return Result{}, fmt.Errorf("vincario request failed: %w", err)
+		return Result{}, fmt.Errorf("vincario request failed")
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		return Result{}, fmt.Errorf("vincario returned HTTP %d", res.StatusCode)
 	}
 
+	return parseVincarioResponse(res.Body, local)
+}
+
+// ReplayVincarioResponse normalizes a saved response without constructing an API request.
+func ReplayVincarioResponse(body io.Reader) (Result, error) {
+	return parseVincarioResponse(body, vin.Result{})
+}
+
+func parseVincarioResponse(body io.Reader, local vin.Result) (Result, error) {
 	var payload vincarioResponse
-	decoder := json.NewDecoder(io.LimitReader(res.Body, 2<<20))
+	decoder := json.NewDecoder(io.LimitReader(body, 2<<20))
 	if err := decoder.Decode(&payload); err != nil {
-		return Result{}, fmt.Errorf("vincario response decode failed: %w", err)
+		return Result{}, fmt.Errorf("vincario response decode failed")
 	}
 	if payload.Success != nil && !*payload.Success {
 		return Result{}, fmt.Errorf("vincario rejected the VIN decode request")
